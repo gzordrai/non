@@ -1,0 +1,13 @@
+univ:
+.name 'Université Exemple'
+.domain 'exemple.tld'
+
+student:
+.name .login
+.mail .login '.etu@' univ.domain
+.login @
+
+alice: student
+
+bob: student
+.name 'robert'
