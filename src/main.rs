@@ -1,6 +1,6 @@
-use std::{fs::File, io::Read, str::FromStr};
+use std::{fs::File, io::Read};
 
-use crate::parser::Tokenizer;
+use crate::parser::{NonLexer, NonParser};
 
 mod parser;
 
@@ -10,5 +10,9 @@ fn main() {
 
     file.read_to_string(&mut buf).unwrap();
 
-    Tokenizer::from_str(&buf).unwrap();
+    let mut lexer = NonLexer::new(&buf);
+    // println!("tokens: {:?}", lexer.read_all());
+
+    let mut parser = NonParser::new(lexer);
+    parser.parse();
 }
