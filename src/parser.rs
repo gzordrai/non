@@ -36,7 +36,7 @@ impl<'a> NonParser<'a> {
         self.advance();
 
         if !self.eat(TokenKind::Colon) {
-            panic!("Error parsing");
+            panic!("Colon required after non declaration.");
         }
 
         self.skip_spaces();
@@ -47,7 +47,7 @@ impl<'a> NonParser<'a> {
         }
 
         if !self.eat(TokenKind::Newline) {
-            panic!("Error parsing");
+            panic!("Newline required.");
         }
 
         while self.eat(TokenKind::Dot) {
