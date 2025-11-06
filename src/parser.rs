@@ -105,9 +105,9 @@ impl<'a> NonParser<'a> {
         }
 
         let value = if value_vec.len() == 1 {
-            FieldValue::Vec(value_vec)
-        } else if value_vec.len() > 1 {
             value_vec.pop().unwrap()
+        } else if value_vec.len() > 1 {
+            FieldValue::Vec(value_vec)
         } else {
             panic!("Field value cannot be empty.");
         };
