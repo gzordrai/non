@@ -32,7 +32,6 @@ impl<'a> NonParser<'a> {
 
     fn parse_non(&mut self) {
         let mut non = Non::from_id(self.current_token.get_token_str_raw_value());
-
         self.advance();
 
         if !self.eat(TokenKind::Colon) {
@@ -118,28 +117,25 @@ impl<'a> NonParser<'a> {
 
     fn skip_spaces(&mut self) {
         loop {
-            if !self.is_kind(TokenKind::Space) {
+            if !self.eat(TokenKind::Space) {
                 break;
             }
-            self.advance();
         }
     }
 
     fn skip_newlines(&mut self) {
         loop {
-            if !self.is_kind(TokenKind::Newline) {
+            if !self.eat(TokenKind::Newline) {
                 break;
             }
-            self.advance();
         }
     }
 
     fn skip_spaces_and_newlines(&mut self) {
         loop {
-            if !(self.is_kind(TokenKind::Space) || self.is_kind(TokenKind::Newline)) {
+            if !(self.eat(TokenKind::Space) || self.eat(TokenKind::Newline)) {
                 break;
             }
-            self.advance();
         }
     }
 
