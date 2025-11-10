@@ -1,8 +1,8 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::{Ref, RefCell}, collections::HashMap, rc::Rc};
 
 use crate::{
     lexer::NonLexer,
-    non::{FieldValue, Non, serialize_non_collection},
+    non::{FieldValue, Non},
     token::{Token, TokenKind},
 };
 
@@ -37,14 +37,21 @@ impl<'a> NonParser<'a> {
         }
     }
 
+    pub fn get_non_by_id(&self, id: &str) -> Option<Ref<'_, Non>> {
+        self.nons.get(id).map(|n| n.borrow())
+    }
+
     pub fn _resolve_all(&mut self) {
         for non in self.nons.values() {
-            non.borrow_mut().resolve();
+            non.borrow_mut()._resolve();
         }
     }
 
     pub fn serialize(&self) -> String {
-        serialize_non_collection(self.nons.values().collect())
+        self.nons.values()
+        .map(|n| n.borrow().serialize())
+        .collect::<Vec<_>>()
+        .join("\n")
     }
 
     fn parse_non(&mut self) {

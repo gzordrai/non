@@ -29,39 +29,39 @@ impl Non {
         self.fields.insert(name, value);
     }
 
-    pub fn resolve_field(&self, field_value: FieldValue) -> String {
+    pub fn _resolve_field(&self, field_value: FieldValue) -> String {
         let mut str = String::new();
         match field_value {
             FieldValue::Litteral(v) => str.push_str(&v),
             FieldValue::Vec(field_values) => {
                 for field_value in field_values {
-                    str.push_str(self.resolve_field(field_value).as_str());
+                    str.push_str(self._resolve_field(field_value).as_str());
                 }
             }
             FieldValue::FieldReference(reference) => {
-                str.push_str(self.get_field_value(reference).as_str())
+                str.push_str(self._get_field_value(reference).as_str())
             }
             FieldValue::ObjRef(non, field_name) => {
-                str.push_str(non.borrow().get_field_value(field_name).as_str())
+                str.push_str(non.borrow()._get_field_value(field_name).as_str())
             }
         }
         str
     }
 
-    pub fn resolve(&mut self) {
+    pub fn _resolve(&mut self) {
         let mut fields = HashMap::new();
 
         for (field_name, field_value) in &self.fields {
-            let value = self.resolve_field(field_value.clone());
+            let value = self._resolve_field(field_value.clone());
             fields.insert(field_name.clone(), FieldValue::Litteral(value));
         }
 
         self.fields = fields;
     }
 
-    fn get_field_value(&self, field_name: String) -> String {
+    fn _get_field_value(&self, field_name: String) -> String {
         let field = self.fields.get(&field_name).unwrap();
-        self.resolve_field(field.clone())
+        self._resolve_field(field.clone())
     }
 
     fn serialize_field_value(&self, field_value: &FieldValue) -> String {
@@ -87,7 +87,7 @@ impl Non {
         }
     }
 
-    pub fn to_custom_format(&self) -> String {
+    pub fn serialize(&self) -> String {
         let mut result = String::new();
         let id = self.id();
 
@@ -148,11 +148,4 @@ pub enum FieldValue {
     Vec(Vec<FieldValue>),
     FieldReference(String),
     ObjRef(Rc<RefCell<Non>>, String),
-}
-
-pub fn serialize_non_collection(nons: Vec<&Rc<RefCell<Non>>>) -> String {
-    nons.iter()
-        .map(|n| n.borrow().to_custom_format())
-        .collect::<Vec<_>>()
-        .join("\n")
 }

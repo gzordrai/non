@@ -28,6 +28,8 @@ fn main() {
         parser.parse();
         // parser.resolve_all();
 
-        println!("{}", parser.serialize());
+        // println!("{}", parser.serialize());
+        let non = parser.get_non_by_id("student").unwrap();
+        println!("{}", non.serialize())
     }
 }
