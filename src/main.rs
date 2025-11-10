@@ -2,7 +2,11 @@ use std::{fs::File, io::Read, path::Path};
 
 use clap::Parser;
 
-use crate::{args::Args, lexer::NonLexer, parser::NonParser};
+use crate::{
+    args::{Args, OutputFormat},
+    lexer::NonLexer,
+    parser::NonParser,
+};
 
 mod args;
 mod error;
@@ -22,16 +26,20 @@ fn main() {
         file.read_to_string(&mut buf).unwrap();
 
         let lexer = NonLexer::new(&buf);
-        // println!("tokens: {:?}", lexer.read_all());
-
         let mut parser = NonParser::new(lexer);
+
         parser.parse();
 
-        println!("{}", parser.serialize());
-        // let non = parser.at("student").unwrap();
-        // println!("{}", non.serialize());
-        // println!("name field: {}", non.get("name").unwrap());
+        let non = parser.at("student").unwrap();
 
-        // println!("field name from univ: {}", parser.at("univ").unwrap().get("name").unwrap())
+        if let Some(format) = &args.format {
+            let content = match format {
+                OutputFormat::Json => serde_json::to_string_pretty(&*non).unwrap(),
+                OutputFormat::Yaml => serde_yaml::to_string(&*non).unwrap(),
+                OutputFormat::Non => parser.serialize(),
+            };
+
+            println!("{}", content);
+        }
     }
 }

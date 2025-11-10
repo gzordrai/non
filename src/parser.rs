@@ -1,4 +1,8 @@
-use std::{cell::{Ref, RefCell}, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use crate::{
     lexer::NonLexer,
@@ -34,7 +38,7 @@ impl<'a> NonParser<'a> {
 
         if !self.missing.is_empty() {
             println!("Missing non in file:");
-            for (id, _) in &self.missing {
+            for id in self.missing.keys() {
                 println!("{}", id);
             }
             panic!();
@@ -52,10 +56,11 @@ impl<'a> NonParser<'a> {
     }
 
     pub fn serialize(&self) -> String {
-        self.nons.values()
-        .map(|n| n.borrow().serialize())
-        .collect::<Vec<_>>()
-        .join("\n")
+        self.nons
+            .values()
+            .map(|n| n.borrow().serialize())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     fn parse_non(&mut self) {
