@@ -41,7 +41,7 @@ impl<'a> NonParser<'a> {
         }
     }
 
-    pub fn get_non_by_id(&self, id: &str) -> Option<Ref<'_, Non>> {
+    pub fn at(&self, id: &str) -> Option<Ref<'_, Non>> {
         self.nons.get(id).map(|n| n.borrow())
     }
 

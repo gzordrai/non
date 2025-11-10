@@ -25,6 +25,10 @@ impl Non {
         }
     }
 
+    pub fn get(&self, field_name: &str) -> Option<String> {
+        self.fields.get(field_name).map(|field| self._resolve_field(field.clone()))
+    }
+
     pub fn add_field(&mut self, name: String, value: FieldValue) {
         self.fields.insert(name, value);
     }
@@ -39,10 +43,10 @@ impl Non {
                 }
             }
             FieldValue::FieldReference(reference) => {
-                str.push_str(self._get_field_value(reference).as_str())
+                str.push_str(self.get(&reference).unwrap().as_str())
             }
             FieldValue::ObjRef(non, field_name) => {
-                str.push_str(non.borrow()._get_field_value(field_name).as_str())
+                str.push_str(non.borrow().get(&field_name).unwrap().as_str())
             }
         }
         str
@@ -57,11 +61,6 @@ impl Non {
         }
 
         self.fields = fields;
-    }
-
-    fn _get_field_value(&self, field_name: String) -> String {
-        let field = self.fields.get(&field_name).unwrap();
-        self._resolve_field(field.clone())
     }
 
     fn serialize_field_value(&self, field_value: &FieldValue) -> String {

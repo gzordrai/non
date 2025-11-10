@@ -26,10 +26,12 @@ fn main() {
 
         let mut parser = NonParser::new(lexer);
         parser.parse();
-        // parser.resolve_all();
 
-        // println!("{}", parser.serialize());
-        let non = parser.get_non_by_id("student").unwrap();
-        println!("{}", non.serialize())
+        println!("{}", parser.serialize());
+        // let non = parser.at("student").unwrap();
+        // println!("{}", non.serialize());
+        // println!("name field: {}", non.get("name").unwrap());
+
+        // println!("field name from univ: {}", parser.at("univ").unwrap().get("name").unwrap())
     }
 }
