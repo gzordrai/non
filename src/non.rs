@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use serde::Serialize;
+use serde::{Serialize};
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct Non {
@@ -26,7 +26,7 @@ impl Non {
     }
 
     pub fn get(&self, field_name: &str) -> Option<String> {
-        self.fields.get(field_name).map(|field| self._resolve_field(field.clone()))
+        self.fields().get(field_name).map(|field| self._resolve_field(field.clone()))
     }
 
     pub fn add_field(&mut self, name: String, value: FieldValue) {
@@ -65,13 +65,7 @@ impl Non {
 
     fn serialize_field_value(&self, field_value: &FieldValue) -> String {
         match field_value {
-            FieldValue::Litteral(v) => {
-                if v == "@" || v.starts_with('@') {
-                    v.clone()
-                } else {
-                    format!("'{}'", v)
-                }
-            }
+            FieldValue::Litteral(v) => format!("'{}'", v),
             FieldValue::Vec(field_values) => field_values
                 .iter()
                 .map(|fv| self.serialize_field_value(fv))
@@ -123,6 +117,98 @@ impl Non {
         result
     }
 
+    pub fn serialize_json(&self, flat: bool) -> String {
+        let mut str = String::new();
+
+        str.push_str("{\n");
+        str.push_str("\t\"id\": \"");
+        str.push_str(&self.id());
+        str.push_str("\"");
+
+        if let Some(parent) = &self.parent && !flat {
+            str.push_str(",\n\t");
+            str.push_str("\"parent\": \"");
+            str.push_str(&parent.borrow().id());
+            str.push('\"');
+        }
+
+         let fields = if flat {
+            self.fields()
+        } else {
+            self.fields.clone()
+        };
+
+
+        if fields.len() > 1 { // id always here
+            str.push_str(",\n\t\"fields\":\n\t{\n");
+
+            let fields_str = fields.iter()
+                .filter(|(name, _)| "id" != *name)
+                .map(|(field_name, value)| {
+                    if flat {
+                        format!("\t\t\"{}\": \"{}\"", field_name, self._resolve_field(value.clone()))
+                    } else {
+                        format!("\t\t\"{}\": \"{}\"", field_name, value.to_string())
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(",\n");
+            str.push_str(&fields_str);
+            str.push_str("\n\t}");
+        }
+
+        str.push_str("\n}");
+        str
+    }
+
+    pub fn serialize_yaml(&self, flat: bool) -> String {
+        let mut str = String::new();
+
+        str.push_str(&self.id());
+        str.push_str(":");
+
+        if let Some(parent) = &self.parent {
+            str.push_str("\n\t");
+            str.push_str("parent: ");
+            str.push_str(&parent.borrow().id());
+        }
+
+        if !self.fields.is_empty() {
+            str.push('\n');
+        }
+
+        let fields = if flat {
+            self.fields()
+        } else {
+            self.fields.clone()
+        };
+
+        let fields_str = fields.iter()
+            .filter(|(name, _)| "id" != *name)
+            .map(|(field_name, value)| {
+                if flat {
+                    format!("\t{}: {}", field_name, self._resolve_field(value.clone()))
+                } else {
+                    format!("\t{}: {}", field_name, value.to_string())
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        str.push_str(&fields_str);
+
+        str.push_str("\n");
+        str
+    }
+
+    fn fields(&self) -> HashMap<String, FieldValue> {
+        let mut map = HashMap::new();
+        if let Some(parent) = &self.parent {
+            map.extend(parent.borrow().fields().into_iter());
+        }
+        map.extend(self.fields.clone().into_iter());
+        map
+    }
+
     fn values_equal(&self, v1: &FieldValue, v2: &FieldValue) -> bool {
         match (v1, v2) {
             (FieldValue::Litteral(a), FieldValue::Litteral(b)) => a == b,
@@ -147,4 +233,21 @@ pub enum FieldValue {
     Vec(Vec<FieldValue>),
     FieldReference(String),
     ObjRef(Rc<RefCell<Non>>, String),
+}
+
+impl FieldValue {
+    pub fn to_string(&self) -> String {
+        match self {
+            FieldValue::Litteral(str) => str.clone(),
+            FieldValue::Vec(field_values) => field_values.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(" "),
+            FieldValue::FieldReference(reference) => {
+                if reference == "id" {
+                    "@"
+                } else {
+                    reference
+                }.to_string()
+            },
+            FieldValue::ObjRef(reference, field) => format!("{}.{}", reference.borrow().id(), field.clone()),
+        }
+    }
 }

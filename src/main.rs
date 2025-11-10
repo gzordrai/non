@@ -30,16 +30,18 @@ fn main() {
 
         parser.parse();
 
-        let non = parser.at("student").unwrap();
+        let non = parser.at("alice").unwrap();
 
         if let Some(format) = &args.format {
             let content = match format {
-                OutputFormat::Json => serde_json::to_string_pretty(&*non).unwrap(),
-                OutputFormat::Yaml => serde_yaml::to_string(&*non).unwrap(),
+                OutputFormat::Json => non.serialize_json(true),
+                OutputFormat::Yaml => non.serialize_yaml(true),
                 OutputFormat::Non => parser.serialize(),
             };
 
             println!("{}", content);
         }
+        println!("alice.mail {}", non.get("mail").unwrap());
     }
+
 }

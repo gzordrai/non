@@ -8,6 +8,7 @@ student:
 .login @
 
 alice: student
+.login 'aaaa'
 
 bob: student
 .name 'robert'
