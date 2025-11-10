@@ -3,9 +3,7 @@ use std::{fs::File, io::Read, path::Path};
 use clap::Parser;
 
 use crate::{
-    args::{Args, OutputFormat},
-    lexer::NonLexer,
-    parser::NonParser,
+    args::Args, lexer::NonLexer, nds::NonDefs, parser::NonParser
 };
 
 mod args;
@@ -14,6 +12,7 @@ mod lexer;
 mod non;
 mod parser;
 mod token;
+mod nds;
 
 fn main() {
     let args = Args::parse();
@@ -29,19 +28,17 @@ fn main() {
         let mut parser = NonParser::new(lexer);
 
         parser.parse();
+        let non_defs = NonDefs::builder()
+            .format(args.format)
+            .nons(parser.nons)
+            .flat(args.flat)
+            .build();
+        
+        let content = non_defs.serialize();
+        println!("{}", content);
 
-        let non = parser.at("alice").unwrap();
-
-        if let Some(format) = &args.format {
-            let content = match format {
-                OutputFormat::Json => non.serialize_json(true),
-                OutputFormat::Yaml => non.serialize_yaml(true),
-                OutputFormat::Non => parser.serialize(),
-            };
-
-            println!("{}", content);
-        }
-        println!("alice.mail {}", non.get("mail").unwrap());
+        let _ = non_defs.at("alice").unwrap();
+        // println!("alice.mail {}", non.get("mail").unwrap());
     }
 
 }

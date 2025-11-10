@@ -26,20 +26,20 @@ impl Non {
     }
 
     pub fn get(&self, field_name: &str) -> Option<String> {
-        self.fields().get(field_name).map(|field| self._resolve_field(field.clone()))
+        self.fields().get(field_name).map(|field| self.resolve_field(field.clone()))
     }
 
     pub fn add_field(&mut self, name: String, value: FieldValue) {
         self.fields.insert(name, value);
     }
 
-    pub fn _resolve_field(&self, field_value: FieldValue) -> String {
+    pub fn resolve_field(&self, field_value: FieldValue) -> String {
         let mut str = String::new();
         match field_value {
             FieldValue::Litteral(v) => str.push_str(&v),
             FieldValue::Vec(field_values) => {
                 for field_value in field_values {
-                    str.push_str(self._resolve_field(field_value).as_str());
+                    str.push_str(self.resolve_field(field_value).as_str());
                 }
             }
             FieldValue::FieldReference(reference) => {
@@ -56,65 +56,48 @@ impl Non {
         let mut fields = HashMap::new();
 
         for (field_name, field_value) in &self.fields {
-            let value = self._resolve_field(field_value.clone());
+            let value = self.resolve_field(field_value.clone());
             fields.insert(field_name.clone(), FieldValue::Litteral(value));
         }
 
         self.fields = fields;
     }
 
-    fn serialize_field_value(&self, field_value: &FieldValue) -> String {
-        match field_value {
-            FieldValue::Litteral(v) => format!("'{}'", v),
-            FieldValue::Vec(field_values) => field_values
-                .iter()
-                .map(|fv| self.serialize_field_value(fv))
-                .collect::<Vec<_>>()
-                .join(" "),
-            FieldValue::FieldReference(reference) => {
-                format!(".{}", reference)
-            }
-            FieldValue::ObjRef(non, field_name) => {
-                format!("{}.{}", non.borrow().id(), field_name)
-            }
-        }
-    }
+    pub fn serialize_non(&self, flat: bool) -> String {
+        let mut str = String::new();
 
-    pub fn serialize(&self) -> String {
-        let mut result = String::new();
-        let id = self.id();
+        str.push_str(&self.id().to_string());
+        str.push(':');
 
-        if let Some(parent_ref) = &self.parent {
+        if let Some(parent_ref) = &self.parent && !flat {
             let parent = parent_ref.borrow();
-            result.push_str(&format!("{}: {}\n", id, parent.id()));
+            str.push(' ');
+            str.push_str(&parent.id());
+        }
+        
+        str.push('\n');
 
-            for (key, value) in &self.fields {
-                if key == "id" {
-                    continue;
-                }
 
-                let should_serialize = if let Some(parent_value) = parent.fields.get(key) {
-                    !self.values_equal(value, parent_value)
-                } else {
-                    true
-                };
-
-                if should_serialize {
-                    result.push_str(&format!(".{} {}\n", key, self.serialize_field_value(value)));
-                }
-            }
+        let fields = if flat {
+            &self.fields()
         } else {
-            result.push_str(&format!("{}:\n", id));
-
-            for (key, value) in &self.fields {
-                if key == "id" {
-                    continue;
-                }
-                result.push_str(&format!(".{} {}\n", key, self.serialize_field_value(value)));
+            &self.fields
+        };
+        
+        for (key, value) in fields {
+            if key == "id" {
+                continue;
             }
+
+            let serialized_field_value = if flat {
+                self.resolve_field(value.clone())
+            } else {
+                value.to_string()
+            };
+            str.push_str(&format!(".{} {}\n", key, serialized_field_value));
         }
 
-        result
+        str
     }
 
     pub fn serialize_json(&self, flat: bool) -> String {
@@ -132,10 +115,10 @@ impl Non {
             str.push('\"');
         }
 
-         let fields = if flat {
-            self.fields()
+        let fields = if flat {
+            &self.fields()
         } else {
-            self.fields.clone()
+            &self.fields
         };
 
 
@@ -146,7 +129,7 @@ impl Non {
                 .filter(|(name, _)| "id" != *name)
                 .map(|(field_name, value)| {
                     if flat {
-                        format!("\t\t\"{}\": \"{}\"", field_name, self._resolve_field(value.clone()))
+                        format!("\t\t\"{}\": \"{}\"", field_name, self.resolve_field(value.clone()))
                     } else {
                         format!("\t\t\"{}\": \"{}\"", field_name, value.to_string())
                     }
@@ -178,16 +161,16 @@ impl Non {
         }
 
         let fields = if flat {
-            self.fields()
+            &self.fields()
         } else {
-            self.fields.clone()
+            &self.fields
         };
 
         let fields_str = fields.iter()
             .filter(|(name, _)| "id" != *name)
             .map(|(field_name, value)| {
                 if flat {
-                    format!("\t{}: {}", field_name, self._resolve_field(value.clone()))
+                    format!("\t{}: {}", field_name, self.resolve_field(value.clone()))
                 } else {
                     format!("\t{}: {}", field_name, value.to_string())
                 }
@@ -207,23 +190,6 @@ impl Non {
         }
         map.extend(self.fields.clone().into_iter());
         map
-    }
-
-    fn values_equal(&self, v1: &FieldValue, v2: &FieldValue) -> bool {
-        match (v1, v2) {
-            (FieldValue::Litteral(a), FieldValue::Litteral(b)) => a == b,
-            (FieldValue::FieldReference(a), FieldValue::FieldReference(b)) => a == b,
-            (FieldValue::Vec(a), FieldValue::Vec(b)) => {
-                if a.len() != b.len() {
-                    return false;
-                }
-                a.iter().zip(b.iter()).all(|(x, y)| self.values_equal(x, y))
-            }
-            (FieldValue::ObjRef(obj1, field1), FieldValue::ObjRef(obj2, field2)) => {
-                obj1.borrow().id() == obj2.borrow().id() && field1 == field2
-            }
-            _ => false,
-        }
     }
 }
 

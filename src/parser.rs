@@ -1,13 +1,11 @@
 use std::{
-    cell::{Ref, RefCell},
+    cell::RefCell,
     collections::HashMap,
     rc::Rc,
 };
 
 use crate::{
-    lexer::NonLexer,
-    non::{FieldValue, Non},
-    token::{Token, TokenKind},
+    lexer::NonLexer, non::{FieldValue, Non}, token::{Token, TokenKind}
 };
 
 #[derive(Debug)]
@@ -45,22 +43,10 @@ impl<'a> NonParser<'a> {
         }
     }
 
-    pub fn at(&self, id: &str) -> Option<Ref<'_, Non>> {
-        self.nons.get(id).map(|n| n.borrow())
-    }
-
     pub fn _resolve_all(&mut self) {
         for non in self.nons.values() {
             non.borrow_mut()._resolve();
         }
-    }
-
-    pub fn serialize(&self) -> String {
-        self.nons
-            .values()
-            .map(|n| n.borrow().serialize())
-            .collect::<Vec<_>>()
-            .join("\n")
     }
 
     fn parse_non(&mut self) {
