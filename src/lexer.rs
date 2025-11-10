@@ -58,7 +58,6 @@ pub struct NonLexer<'a> {
     remaining: &'a str,
 }
 
-#[allow(dead_code)]
 impl<'a> NonLexer<'a> {
     pub fn new(source: &'a str) -> Self {
         Self { remaining: source }

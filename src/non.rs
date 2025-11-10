@@ -1,13 +1,18 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::{OnceCell, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
-#[allow(dead_code)]
+use serde::Serialize;
+use serde::ser::SerializeMap;
+
 #[derive(Debug, Default, Clone)]
 pub struct Non {
     fields: HashMap<String, FieldValue>,
     pub parent: Option<Rc<RefCell<Non>>>,
 }
 
-#[allow(dead_code)]
 impl Non {
     pub fn from_id(id: String) -> Self {
         let mut fields = HashMap::new();
@@ -61,13 +66,107 @@ impl Non {
         }
         str
     }
+
+    /// Serialize a single field value to custom format
+    fn serialize_field_value(&self, field_value: &FieldValue) -> String {
+        match field_value {
+            FieldValue::Litteral(v) => {
+                // Don't quote special literals like @
+                if v == "@" || v.starts_with('@') {
+                    v.clone()
+                } else {
+                    format!("'{}'", v)
+                }
+            }
+            FieldValue::Vec(field_values) => field_values
+                .iter()
+                .map(|fv| self.serialize_field_value(fv))
+                .collect::<Vec<_>>()
+                .join(" "),
+            FieldValue::FieldReference(reference) => {
+                format!(".{}", reference)
+            }
+            FieldValue::ObjRef(non, field_name) => {
+                format!("{}.{}", non.borrow().id(), field_name)
+            }
+        }
+    }
+
+    /// Serialize this Non to custom format
+    pub fn to_custom_format(&self) -> String {
+        let mut result = String::new();
+        let id = self.id();
+
+        // Check if this is an instance (has a parent)
+        if let Some(parent_ref) = &self.parent {
+            let parent = parent_ref.borrow();
+            result.push_str(&format!("{}: {}\n", id, parent.id()));
+
+            // Only serialize fields that differ from parent
+            for (key, value) in &self.fields {
+                if key == "id" {
+                    continue;
+                }
+
+                // Check if this field differs from parent
+                let should_serialize = if let Some(parent_value) = parent.fields.get(key) {
+                    // Compare the serialized representation
+                    !self.values_equal(value, parent_value)
+                } else {
+                    // Field doesn't exist in parent, so serialize it
+                    true
+                };
+
+                if should_serialize {
+                    result.push_str(&format!(".{} {}\n", key, self.serialize_field_value(value)));
+                }
+            }
+        } else {
+            // This is a template/class definition
+            result.push_str(&format!("{}:\n", id));
+
+            for (key, value) in &self.fields {
+                if key == "id" {
+                    continue;
+                }
+                result.push_str(&format!(".{} {}\n", key, self.serialize_field_value(value)));
+            }
+        }
+
+        result
+    }
+
+    /// Check if two field values are equal
+    fn values_equal(&self, v1: &FieldValue, v2: &FieldValue) -> bool {
+        match (v1, v2) {
+            (FieldValue::Litteral(a), FieldValue::Litteral(b)) => a == b,
+            (FieldValue::FieldReference(a), FieldValue::FieldReference(b)) => a == b,
+            (FieldValue::Vec(a), FieldValue::Vec(b)) => {
+                if a.len() != b.len() {
+                    return false;
+                }
+                a.iter().zip(b.iter()).all(|(x, y)| self.values_equal(x, y))
+            }
+            (FieldValue::ObjRef(obj1, field1), FieldValue::ObjRef(obj2, field2)) => {
+                obj1.borrow().id() == obj2.borrow().id() && field1 == field2
+            }
+            _ => false,
+        }
+    }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum FieldValue {
     Litteral(String),
     Vec(Vec<FieldValue>),
     FieldReference(String),
     ObjRef(Rc<RefCell<Non>>, String),
+}
+
+/// Serialize a collection of Non objects to custom format
+pub fn serialize_non_collection(nons: &[Non]) -> String {
+    nons.iter()
+        .map(|n| n.to_custom_format())
+        .collect::<Vec<_>>()
+        .join("")
 }

@@ -9,6 +9,6 @@ pub enum LexerError {
     #[error("Identifier and litterals tokens need a value to be instanciated.")]
     MissingTokenValue,
 
-    #[error("Token kind cannot have a value.")]
+    #[error("Token kind {0} cannot have a value.")]
     InvalidTokenKind(TokenKind),
 }

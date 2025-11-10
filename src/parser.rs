@@ -6,7 +6,6 @@ use crate::{
     token::{Token, TokenKind},
 };
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct NonParser<'a> {
     current_token: Token,
@@ -15,7 +14,6 @@ pub struct NonParser<'a> {
     pub noms: HashMap<String, Rc<RefCell<Non>>>,
 }
 
-#[allow(dead_code)]
 impl<'a> NonParser<'a> {
     pub fn new(lexer: NonLexer<'a>) -> Self {
         Self {
@@ -38,15 +36,17 @@ impl<'a> NonParser<'a> {
     }
 
     pub fn resolve_all(&mut self) {
-        for (_, non) in &self.noms {
+        for non in self.noms.values() {
             non.borrow_mut().resolve();
         }
     }
 
     fn parse_non(&mut self) {
         let id = self.current_token.get_token_str_raw_value().unwrap();
-
-        let non = self.missing.remove(&id).unwrap_or(Rc::new(RefCell::new(Non::from_id(id.clone()))));
+        let non = self
+            .missing
+            .remove(&id)
+            .unwrap_or(Rc::new(RefCell::new(Non::from_id(id.clone()))));
 
         self.advance();
 
@@ -197,6 +197,6 @@ impl<'a> NonParser<'a> {
     }
 
     fn advance(&mut self) {
-        self.current_token = self.lexer.read_next_token().unwrap_or(Token::default());
+        self.current_token = self.lexer.read_next_token().unwrap_or_default();
     }
 }
