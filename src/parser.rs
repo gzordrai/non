@@ -11,14 +11,14 @@ pub struct NonParser<'a> {
     current_token: Token,
     lexer: NonLexer<'a>,
     missing: HashMap<String, Rc<RefCell<Non>>>,
-    pub noms: HashMap<String, Rc<RefCell<Non>>>,
+    pub nons: HashMap<String, Rc<RefCell<Non>>>,
 }
 
 impl<'a> NonParser<'a> {
     pub fn new(lexer: NonLexer<'a>) -> Self {
         Self {
             current_token: Token::default(),
-            noms: HashMap::new(),
+            nons: HashMap::new(),
             missing: HashMap::new(),
             lexer,
         }
@@ -27,23 +27,24 @@ impl<'a> NonParser<'a> {
     pub fn parse(&mut self) {
         self.advance();
         self.skip_newlines();
+
         while self.is_kind(TokenKind::Identifier) {
             self.parse_non();
         }
+
         if !self.missing.is_empty() {
             panic!("Missing");
         }
     }
 
     pub fn _resolve_all(&mut self) {
-        for non in self.noms.values() {
+        for non in self.nons.values() {
             non.borrow_mut().resolve();
         }
     }
 
     pub fn serialize(&self) -> String {
-        serialize_non_collection(self.noms
-            .values().collect())
+        serialize_non_collection(self.nons.values().collect())
     }
 
     fn parse_non(&mut self) {
@@ -78,14 +79,14 @@ impl<'a> NonParser<'a> {
         }
 
         let id = non.borrow().id();
-        self.noms.insert(id, non);
+        self.nons.insert(id, non);
 
         self.skip_newlines();
     }
 
     fn find_nom_by_id_or_create(&mut self, id: String) -> Rc<RefCell<Non>> {
-        if self.noms.contains_key(&id) {
-            self.noms.get(&id).cloned().unwrap()
+        if self.nons.contains_key(&id) {
+            self.nons.get(&id).cloned().unwrap()
         } else if self.missing.contains_key(&id) {
             self.missing.get(&id).cloned().unwrap()
         } else {

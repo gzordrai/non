@@ -1,10 +1,8 @@
-use std::{
-    cell::{RefCell},
-    collections::HashMap,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-#[derive(Debug, Default, Clone)]
+use serde::Serialize;
+
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Non {
     fields: HashMap<String, FieldValue>,
     pub parent: Option<Rc<RefCell<Non>>>,
@@ -52,10 +50,12 @@ impl Non {
 
     pub fn resolve(&mut self) {
         let mut fields = HashMap::new();
+
         for (field_name, field_value) in &self.fields {
             let value = self.resolve_field(field_value.clone());
             fields.insert(field_name.clone(), FieldValue::Litteral(value));
         }
+
         self.fields = fields;
     }
 
@@ -142,7 +142,7 @@ impl Non {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum FieldValue {
     Litteral(String),
     Vec(Vec<FieldValue>),
