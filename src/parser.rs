@@ -32,11 +32,10 @@ impl<'a> NonParser<'a> {
 
     fn parse_non(&mut self) {
         let mut non = Non::from_id(self.current_token.get_token_str_raw_value());
-
         self.advance();
 
         if !self.eat(TokenKind::Colon) {
-            panic!("Error parsing");
+            panic!("Colon required after non declaration.");
         }
 
         self.skip_spaces();
@@ -47,7 +46,7 @@ impl<'a> NonParser<'a> {
         }
 
         if !self.eat(TokenKind::Newline) {
-            panic!("Error parsing");
+            panic!("Newline required.");
         }
 
         while self.eat(TokenKind::Dot) {
@@ -106,9 +105,9 @@ impl<'a> NonParser<'a> {
         }
 
         let value = if value_vec.len() == 1 {
-            FieldValue::Vec(value_vec)
-        } else if value_vec.len() > 1 {
             value_vec.pop().unwrap()
+        } else if value_vec.len() > 1 {
+            FieldValue::Vec(value_vec)
         } else {
             panic!("Field value cannot be empty.");
         };
@@ -118,28 +117,25 @@ impl<'a> NonParser<'a> {
 
     fn skip_spaces(&mut self) {
         loop {
-            if !self.is_kind(TokenKind::Space) {
+            if !self.eat(TokenKind::Space) {
                 break;
             }
-            self.advance();
         }
     }
 
     fn skip_newlines(&mut self) {
         loop {
-            if !self.is_kind(TokenKind::Newline) {
+            if !self.eat(TokenKind::Newline) {
                 break;
             }
-            self.advance();
         }
     }
 
     fn skip_spaces_and_newlines(&mut self) {
         loop {
-            if !(self.is_kind(TokenKind::Space) || self.is_kind(TokenKind::Newline)) {
+            if !(self.eat(TokenKind::Space) || self.eat(TokenKind::Newline)) {
                 break;
             }
-            self.advance();
         }
     }
 
