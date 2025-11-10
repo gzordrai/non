@@ -2,6 +2,7 @@ use std::{fs::File, io::Read};
 
 use crate::{lexer::NonLexer, parser::NonParser};
 
+mod error;
 mod lexer;
 mod non;
 mod parser;

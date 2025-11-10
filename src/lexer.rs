@@ -8,7 +8,7 @@ use nom::{
     },
 };
 
-use crate::token::{Token, TokenKind, TokenValue};
+use crate::token::{Token, TokenKind};
 
 fn parse_char_to_token(s: &str, c: char, token: Token) -> IResult<&str, Token> {
     char(c).parse(s).map(|(rest, _)| (rest, token))
@@ -20,7 +20,7 @@ fn parse_identifier(s: &str) -> IResult<&str, Token> {
         .map(|(rest, id)| {
             (
                 rest,
-                Token::new(TokenKind::Identifier, TokenValue::String(id.to_string())),
+                Token::new(TokenKind::Identifier, Some(id.to_string())),
             )
         })
 }
@@ -28,12 +28,7 @@ fn parse_identifier(s: &str) -> IResult<&str, Token> {
 fn parse_string_litteral(s: &str) -> IResult<&str, Token> {
     (char('\''), take_while1(|c| c != '\''), char('\''))
         .parse(s)
-        .map(|(rest, (_, s, _))| {
-            (
-                rest,
-                Token::new(TokenKind::Litteral, TokenValue::String(s.to_string())),
-            )
-        })
+        .map(|(rest, (_, s, _))| (rest, Token::new(TokenKind::Litteral, Some(s.to_string()))))
 }
 
 fn parse_dot(s: &str) -> IResult<&str, Token> {

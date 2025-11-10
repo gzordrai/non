@@ -35,10 +35,13 @@ impl<'a> NonParser<'a> {
     }
 
     fn parse_non(&mut self) {
-        let id = self.current_token.get_token_str_raw_value();
+        let id = self.current_token.get_token_str_raw_value().unwrap();
 
-        let mut non = self.missing.remove(&id).unwrap_or(Rc::new(Non::from_id(id)));
-        let mut_non = Rc::get_mut(&mut non).unwrap(); 
+        let mut non = self
+            .missing
+            .remove(&id)
+            .unwrap_or(Rc::new(Non::from_id(id)));
+        let mut_non = Rc::get_mut(&mut non).unwrap();
 
         self.advance();
 
@@ -49,7 +52,7 @@ impl<'a> NonParser<'a> {
         self.skip_spaces();
 
         if self.is_kind(TokenKind::Identifier) {
-            let parent_name = self.current_token.get_token_str_raw_value();
+            let parent_name = self.current_token.get_token_str_raw_value().unwrap();
             let parent = self.find_nom_by_id_or_create(parent_name);
             mut_non.parent = Some(parent);
             self.advance();
@@ -81,7 +84,7 @@ impl<'a> NonParser<'a> {
 
     fn parse_field(&mut self) -> (String, FieldValue) {
         let field_name = if self.is_kind(TokenKind::Identifier) {
-            self.current_token.get_token_str_raw_value()
+            self.current_token.get_token_str_raw_value().unwrap()
         } else {
             panic!("Field name must be an identifier.");
         };
@@ -94,25 +97,30 @@ impl<'a> NonParser<'a> {
                     TokenKind::Dot => {
                         self.advance();
                         if self.is_kind(TokenKind::Identifier) {
-                            FieldValue::FieldReference(self.current_token.get_token_str_raw_value())
+                            FieldValue::FieldReference(
+                                self.current_token.get_token_str_raw_value().unwrap(),
+                            )
                         } else {
                             panic!("Token must be an identifier.");
                         }
                     }
 
                     TokenKind::Identifier => {
-                        let identifier = self.current_token.get_token_str_raw_value();
+                        let identifier = self.current_token.get_token_str_raw_value().unwrap();
                         self.advance();
                         if self.eat(TokenKind::Dot) && self.is_kind(TokenKind::Identifier) {
                             let field = self.current_token.get_token_str_raw_value();
-                            FieldValue::ObjRef(self.find_nom_by_id_or_create(identifier), field)
+                            FieldValue::ObjRef(
+                                self.find_nom_by_id_or_create(identifier),
+                                field.unwrap(),
+                            )
                         } else {
                             panic!("Identifier not found for non reference.");
                         }
                     }
 
                     TokenKind::Litteral => {
-                        FieldValue::Litteral(self.current_token.get_token_str_raw_value())
+                        FieldValue::Litteral(self.current_token.get_token_str_raw_value().unwrap())
                     }
 
                     TokenKind::At => FieldValue::FieldReference("id".to_string()),

@@ -1,4 +1,12 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use std::fmt::Display;
+
+use thiserror::Error;
+
+use crate::error::{LexerError, Result};
+
+pub type TokenValue = Option<String>;
+
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     Identifier,
     Litteral,
@@ -10,10 +18,19 @@ pub enum TokenKind {
     EOF,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenValue {
-    None,
-    String(String),
+impl Display for TokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Identifier => f.write_str("Identifier"),
+            Self::Litteral => f.write_str("Litteral"),
+            Self::Space => f.write_str("Space"),
+            Self::Dot => f.write_str("Dot"),
+            Self::Colon => f.write_str("Colon"),
+            Self::At => f.write_str("At"),
+            Self::Newline => f.write_str("NewLine"),
+            Self::EOF => f.write_str("EOF"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -27,37 +44,26 @@ impl Token {
         Self { kind, value }
     }
 
-    pub fn get_token_str_raw_value(&self) -> String {
-        match self.kind {
-            TokenKind::Identifier | TokenKind::Litteral => {
-                if let TokenValue::String(value) = &self.value {
-                    value.to_owned()
-                } else {
-                    panic!("No value found in identifier or litteral.")
-                }
-            }
-            _ => {
-                panic!(
-                    "{}",
-                    format!("Token kind {:?} cannot have a value.", self.kind)
-                )
+    pub fn get_token_str_raw_value(&self) -> Option<String> {
+        if matches!(self.kind, TokenKind::Identifier | TokenKind::Litteral) {
+            if let Some(value) = &self.value {
+                return Some(value.to_owned());
             }
         }
+
+        None
     }
 
-    fn verify_token(kind: TokenKind, value: TokenValue) {
-        match kind {
-            TokenKind::Identifier | TokenKind::Litteral => {
-                if let TokenValue::None = value {
-                    panic!("Identifier and litterals tokens need a value to be instanciated.")
-                }
-            }
-            _ => {
-                if let TokenValue::String(_) = value {
-                    panic!("{}", format!("Token kind {:?} cannot have a value.", kind))
-                }
+    fn verify_token(kind: TokenKind, value: TokenValue) -> Result<()> {
+        if matches!(kind, TokenKind::Identifier | TokenKind::Litteral) {
+            if value.is_some() {
+                return Ok(());
+            } else {
+                return Err(LexerError::MissingTokenValue);
             }
         }
+
+        Err(LexerError::InvalidTokenKind(kind))
     }
 }
 
