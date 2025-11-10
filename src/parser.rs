@@ -1,3 +1,5 @@
+use std::{collections::HashMap, rc::Rc};
+
 use crate::{
     lexer::NonLexer,
     non::{FieldValue, Non},
@@ -9,7 +11,8 @@ use crate::{
 pub struct NonParser<'a> {
     current_token: Token,
     lexer: NonLexer<'a>,
-    pub noms: Vec<Non>,
+    missing: HashMap<String, Rc<Non>>,
+    pub noms: HashMap<String, Rc<Non>>,
 }
 
 #[allow(dead_code)]
@@ -17,7 +20,8 @@ impl<'a> NonParser<'a> {
     pub fn new(lexer: NonLexer<'a>) -> Self {
         Self {
             current_token: Token::default(),
-            noms: Vec::new(),
+            noms: HashMap::new(),
+            missing: HashMap::new(),
             lexer,
         }
     }
@@ -31,7 +35,11 @@ impl<'a> NonParser<'a> {
     }
 
     fn parse_non(&mut self) {
-        let mut non = Non::from_id(self.current_token.get_token_str_raw_value());
+        let id = self.current_token.get_token_str_raw_value();
+
+        let mut non = self.missing.remove(&id).unwrap_or(Rc::new(Non::from_id(id)));
+        let mut_non = Rc::get_mut(&mut non).unwrap(); 
+
         self.advance();
 
         if !self.eat(TokenKind::Colon) {
@@ -41,7 +49,9 @@ impl<'a> NonParser<'a> {
         self.skip_spaces();
 
         if self.is_kind(TokenKind::Identifier) {
-            non.parent = Some(self.current_token.get_token_str_raw_value());
+            let parent_name = self.current_token.get_token_str_raw_value();
+            let parent = self.find_nom_by_id_or_create(parent_name);
+            mut_non.parent = Some(parent);
             self.advance();
         }
 
@@ -51,12 +61,22 @@ impl<'a> NonParser<'a> {
 
         while self.eat(TokenKind::Dot) {
             let (field_name, field_value) = self.parse_field();
-            non.add_field(field_name, field_value);
+            mut_non.add_field(field_name, field_value);
         }
 
-        self.noms.push(non);
+        self.noms.insert(non.id.clone(), non);
 
         self.skip_newlines();
+    }
+
+    fn find_nom_by_id_or_create(&mut self, id: String) -> Rc<Non> {
+        if self.noms.contains_key(&id) {
+            self.noms.get(&id).cloned().unwrap()
+        } else {
+            let non = Rc::new(Non::default());
+            self.missing.insert(id.clone(), non.clone());
+            non
+        }
     }
 
     fn parse_field(&mut self) -> (String, FieldValue) {
@@ -85,7 +105,7 @@ impl<'a> NonParser<'a> {
                         self.advance();
                         if self.eat(TokenKind::Dot) && self.is_kind(TokenKind::Identifier) {
                             let field = self.current_token.get_token_str_raw_value();
-                            FieldValue::ObjRef(identifier, field)
+                            FieldValue::ObjRef(self.find_nom_by_id_or_create(identifier), field)
                         } else {
                             panic!("Identifier not found for non reference.");
                         }

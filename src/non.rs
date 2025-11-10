@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 #[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct Non {
-    id: String,
+    pub id: String,
     fields: HashMap<String, FieldValue>,
-    pub parent: Option<String>,
+    pub parent: Option<Rc<Non>>,
 }
 
 #[allow(dead_code)]
@@ -20,6 +20,10 @@ impl Non {
     pub fn add_field(&mut self, name: String, value: FieldValue) {
         self.fields.insert(name, value);
     }
+
+    pub fn resolve(&mut self) {
+
+    }
 }
 
 #[allow(dead_code)]
@@ -28,5 +32,5 @@ pub enum FieldValue {
     Litteral(String),
     Vec(Vec<FieldValue>),
     FieldReference(String),
-    ObjRef(String, String),
+    ObjRef(Rc<Non>, String),
 }
