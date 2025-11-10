@@ -3,7 +3,6 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 #[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct Non {
-    pub id: String,
     fields: HashMap<String, FieldValue>,
     pub parent: Option<Rc<RefCell<Non>>>,
 }
@@ -11,9 +10,18 @@ pub struct Non {
 #[allow(dead_code)]
 impl Non {
     pub fn from_id(id: String) -> Self {
+        let mut fields = HashMap::new();
+        fields.insert("id".to_string(), FieldValue::Litteral(id));
         Non {
-            id,
+            fields,
             ..Default::default()
+        }
+    }
+
+    pub fn id(&self) -> String {
+        match self.fields.get("id").unwrap() {
+            FieldValue::Litteral(id) => id.clone(),
+            _ => panic!("Id must be a litteral."),
         }
     }
 
@@ -31,12 +39,8 @@ impl Non {
     }
 
     fn get_field_value(&self, field_name: String) -> String {
-        if field_name.eq("id") {
-            self.id.clone()
-        } else {
-            let field = self.fields.get(&field_name).unwrap();
-            self.resolve_field(field.clone())
-        }
+        let field = self.fields.get(&field_name).unwrap();
+        self.resolve_field(field.clone())
     }
 
     pub fn resolve_field(&self, field_value: FieldValue) -> String {

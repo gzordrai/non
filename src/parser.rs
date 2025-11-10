@@ -72,7 +72,7 @@ impl<'a> NonParser<'a> {
             non.borrow_mut().add_field(field_name, field_value);
         }
 
-        let id = non.borrow().id.clone();
+        let id = non.borrow().id();
         self.noms.insert(id, non);
 
         self.skip_newlines();
