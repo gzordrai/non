@@ -15,7 +15,7 @@ pub enum TokenKind {
     Colon,
     At,
     Newline,
-    EOF,
+    Eof,
 }
 
 impl Display for TokenKind {
@@ -28,7 +28,7 @@ impl Display for TokenKind {
             Self::Colon => f.write_str("Colon"),
             Self::At => f.write_str("At"),
             Self::Newline => f.write_str("NewLine"),
-            Self::EOF => f.write_str("EOF"),
+            Self::Eof => f.write_str("EOF"),
         }
     }
 }
@@ -45,10 +45,10 @@ impl Token {
     }
 
     pub fn get_token_str_raw_value(&self) -> Option<String> {
-        if matches!(self.kind, TokenKind::Identifier | TokenKind::Litteral) {
-            if let Some(value) = &self.value {
-                return Some(value.to_owned());
-            }
+        if matches!(self.kind, TokenKind::Identifier | TokenKind::Litteral)
+            && let Some(value) = &self.value
+        {
+            return Some(value.to_owned());
         }
 
         None
@@ -70,15 +70,15 @@ impl Token {
 impl Default for Token {
     fn default() -> Self {
         Self {
-            kind: TokenKind::EOF,
-            value: TokenValue::None,
+            kind: TokenKind::Eof,
+            value: None,
         }
     }
 }
 
 impl From<TokenKind> for Token {
     fn from(token: TokenKind) -> Self {
-        Token::verify_token(token, TokenValue::None);
-        Token::new(token, TokenValue::None)
+        Token::verify_token(token, None);
+        Token::new(token, None)
     }
 }
