@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, rc::Rc};
 
 use crate::{lexer::NonLexer, parser::NonParser};
 
@@ -18,5 +18,8 @@ fn main() {
 
     let mut parser = NonParser::new(lexer);
     parser.parse();
-    println!("nons: {:?}", parser.noms);
+    parser.resolve_all();
+    for (id, non) in &parser.noms {
+        println!("{}: {:?}\n\n", id, non);
+    }
 }
