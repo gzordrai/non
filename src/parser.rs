@@ -33,7 +33,11 @@ impl<'a> NonParser<'a> {
         }
 
         if !self.missing.is_empty() {
-            panic!("Missing");
+            println!("Missing non in file:");
+            for (id, _) in &self.missing {
+                println!("{}", id);
+            }
+            panic!();
         }
     }
 
