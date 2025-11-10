@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     lexer::NonLexer,
@@ -11,8 +11,8 @@ use crate::{
 pub struct NonParser<'a> {
     current_token: Token,
     lexer: NonLexer<'a>,
-    missing: HashMap<String, Rc<Non>>,
-    pub noms: HashMap<String, Rc<Non>>,
+    missing: HashMap<String, Rc<RefCell<Non>>>,
+    pub noms: HashMap<String, Rc<RefCell<Non>>>,
 }
 
 #[allow(dead_code)]
@@ -32,16 +32,21 @@ impl<'a> NonParser<'a> {
         while self.is_kind(TokenKind::Identifier) {
             self.parse_non();
         }
+        if !self.missing.is_empty() {
+            panic!("Missing");
+        }
+    }
+
+    pub fn resolve_all(&mut self) {
+        for (_, non) in &self.noms {
+            non.borrow_mut().resolve();
+        }
     }
 
     fn parse_non(&mut self) {
         let id = self.current_token.get_token_str_raw_value().unwrap();
 
-        let mut non = self
-            .missing
-            .remove(&id)
-            .unwrap_or(Rc::new(Non::from_id(id)));
-        let mut_non = Rc::get_mut(&mut non).unwrap();
+        let non = self.missing.remove(&id).unwrap_or(Rc::new(RefCell::new(Non::from_id(id.clone()))));
 
         self.advance();
 
@@ -54,7 +59,7 @@ impl<'a> NonParser<'a> {
         if self.is_kind(TokenKind::Identifier) {
             let parent_name = self.current_token.get_token_str_raw_value().unwrap();
             let parent = self.find_nom_by_id_or_create(parent_name);
-            mut_non.parent = Some(parent);
+            non.borrow_mut().parent = Some(parent);
             self.advance();
         }
 
@@ -64,20 +69,23 @@ impl<'a> NonParser<'a> {
 
         while self.eat(TokenKind::Dot) {
             let (field_name, field_value) = self.parse_field();
-            mut_non.add_field(field_name, field_value);
+            non.borrow_mut().add_field(field_name, field_value);
         }
 
-        self.noms.insert(non.id.clone(), non);
+        let id = non.borrow().id.clone();
+        self.noms.insert(id, non);
 
         self.skip_newlines();
     }
 
-    fn find_nom_by_id_or_create(&mut self, id: String) -> Rc<Non> {
+    fn find_nom_by_id_or_create(&mut self, id: String) -> Rc<RefCell<Non>> {
         if self.noms.contains_key(&id) {
             self.noms.get(&id).cloned().unwrap()
+        } else if self.missing.contains_key(&id) {
+            self.missing.get(&id).cloned().unwrap()
         } else {
-            let non = Rc::new(Non::default());
-            self.missing.insert(id.clone(), non.clone());
+            let non = Rc::new(RefCell::new(Non::from_id(id.clone())));
+            self.missing.insert(id, non.clone());
             non
         }
     }

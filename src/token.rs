@@ -78,7 +78,7 @@ impl Default for Token {
 
 impl From<TokenKind> for Token {
     fn from(token: TokenKind) -> Self {
-        Token::verify_token(token, None);
+        let _ = Token::verify_token(token, None);
         Token::new(token, None)
     }
 }

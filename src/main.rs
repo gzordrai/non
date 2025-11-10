@@ -19,5 +19,8 @@ fn main() {
 
     let mut parser = NonParser::new(lexer);
     parser.parse();
-    println!("nons: {:?}", parser.noms);
+    parser.resolve_all();
+    for (id, non) in &parser.noms {
+        println!("{}: {:?}\n\n", id, non);
+    }
 }
