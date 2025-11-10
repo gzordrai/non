@@ -1,11 +1,8 @@
 use std::{
-    cell::{OnceCell, RefCell},
+    cell::{RefCell},
     collections::HashMap,
     rc::Rc,
 };
-
-use serde::Serialize;
-use serde::ser::SerializeMap;
 
 #[derive(Debug, Default, Clone)]
 pub struct Non {
@@ -34,20 +31,6 @@ impl Non {
         self.fields.insert(name, value);
     }
 
-    pub fn resolve(&mut self) {
-        let mut fields = HashMap::new();
-        for (field_name, field_value) in &self.fields {
-            let value = self.resolve_field(field_value.clone());
-            fields.insert(field_name.clone(), FieldValue::Litteral(value));
-        }
-        self.fields = fields;
-    }
-
-    fn get_field_value(&self, field_name: String) -> String {
-        let field = self.fields.get(&field_name).unwrap();
-        self.resolve_field(field.clone())
-    }
-
     pub fn resolve_field(&self, field_value: FieldValue) -> String {
         let mut str = String::new();
         match field_value {
@@ -67,11 +50,23 @@ impl Non {
         str
     }
 
-    /// Serialize a single field value to custom format
+    pub fn resolve(&mut self) {
+        let mut fields = HashMap::new();
+        for (field_name, field_value) in &self.fields {
+            let value = self.resolve_field(field_value.clone());
+            fields.insert(field_name.clone(), FieldValue::Litteral(value));
+        }
+        self.fields = fields;
+    }
+
+    fn get_field_value(&self, field_name: String) -> String {
+        let field = self.fields.get(&field_name).unwrap();
+        self.resolve_field(field.clone())
+    }
+
     fn serialize_field_value(&self, field_value: &FieldValue) -> String {
         match field_value {
             FieldValue::Litteral(v) => {
-                // Don't quote special literals like @
                 if v == "@" || v.starts_with('@') {
                     v.clone()
                 } else {
@@ -92,28 +87,22 @@ impl Non {
         }
     }
 
-    /// Serialize this Non to custom format
     pub fn to_custom_format(&self) -> String {
         let mut result = String::new();
         let id = self.id();
 
-        // Check if this is an instance (has a parent)
         if let Some(parent_ref) = &self.parent {
             let parent = parent_ref.borrow();
             result.push_str(&format!("{}: {}\n", id, parent.id()));
 
-            // Only serialize fields that differ from parent
             for (key, value) in &self.fields {
                 if key == "id" {
                     continue;
                 }
 
-                // Check if this field differs from parent
                 let should_serialize = if let Some(parent_value) = parent.fields.get(key) {
-                    // Compare the serialized representation
                     !self.values_equal(value, parent_value)
                 } else {
-                    // Field doesn't exist in parent, so serialize it
                     true
                 };
 
@@ -122,7 +111,6 @@ impl Non {
                 }
             }
         } else {
-            // This is a template/class definition
             result.push_str(&format!("{}:\n", id));
 
             for (key, value) in &self.fields {
@@ -136,7 +124,6 @@ impl Non {
         result
     }
 
-    /// Check if two field values are equal
     fn values_equal(&self, v1: &FieldValue, v2: &FieldValue) -> bool {
         match (v1, v2) {
             (FieldValue::Litteral(a), FieldValue::Litteral(b)) => a == b,
@@ -163,10 +150,9 @@ pub enum FieldValue {
     ObjRef(Rc<RefCell<Non>>, String),
 }
 
-/// Serialize a collection of Non objects to custom format
-pub fn serialize_non_collection(nons: &[Non]) -> String {
+pub fn serialize_non_collection(nons: Vec<&Rc<RefCell<Non>>>) -> String {
     nons.iter()
-        .map(|n| n.to_custom_format())
+        .map(|n| n.borrow().to_custom_format())
         .collect::<Vec<_>>()
-        .join("")
+        .join("\n")
 }

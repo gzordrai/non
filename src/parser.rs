@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     lexer::NonLexer,
-    non::{FieldValue, Non},
+    non::{FieldValue, Non, serialize_non_collection},
     token::{Token, TokenKind},
 };
 
@@ -35,10 +35,15 @@ impl<'a> NonParser<'a> {
         }
     }
 
-    pub fn resolve_all(&mut self) {
+    pub fn _resolve_all(&mut self) {
         for non in self.noms.values() {
             non.borrow_mut().resolve();
         }
+    }
+
+    pub fn serialize(&self) -> String {
+        serialize_non_collection(self.noms
+            .values().collect())
     }
 
     fn parse_non(&mut self) {
@@ -165,18 +170,6 @@ impl<'a> NonParser<'a> {
                 break;
             }
         }
-    }
-
-    fn skip_spaces_and_newlines(&mut self) {
-        loop {
-            if !(self.eat(TokenKind::Space) || self.eat(TokenKind::Newline)) {
-                break;
-            }
-        }
-    }
-
-    fn current_token(&self) -> &Token {
-        &self.current_token
     }
 
     fn current_kind(&self) -> TokenKind {

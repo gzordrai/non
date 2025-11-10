@@ -2,7 +2,7 @@ use std::{fs::File, io::Read, path::Path};
 
 use clap::Parser;
 
-use crate::{args::Args, lexer::NonLexer, non::serialize_non_collection, parser::NonParser};
+use crate::{args::Args, lexer::NonLexer, parser::NonParser};
 
 mod args;
 mod error;
@@ -26,18 +26,8 @@ fn main() {
 
         let mut parser = NonParser::new(lexer);
         parser.parse();
-        parser.resolve_all();
+        // parser.resolve_all();
 
-        let ids = parser
-            .noms
-            .values()
-            .map(|v| v.borrow())
-            .collect::<[non::Non]>();
-
-        // serialize_non_collection(&c);
-
-        for (id, non) in &parser.noms {
-            println!("{}: {:?}\n\n", id, non);
-        }
+        println!("{}", parser.serialize());
     }
 }

@@ -81,7 +81,7 @@ impl<'a> NonLexer<'a> {
         .map_err(|err| format!("Tokenize error : {}", err))
     }
 
-    pub fn read_all(&mut self) -> Vec<Token> {
+    pub fn _read_all(&mut self) -> Vec<Token> {
         self.into_iter().collect()
     }
 }
