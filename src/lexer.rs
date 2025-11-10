@@ -37,25 +37,25 @@ fn parse_string_litteral(s: &str) -> IResult<&str, Token> {
 }
 
 fn parse_dot(s: &str) -> IResult<&str, Token> {
-    parse_char_to_token(s, '.', Token::from_kind(TokenKind::Dot))
+    parse_char_to_token(s, '.', Token::from(TokenKind::Dot))
 }
 
 fn parse_at(s: &str) -> IResult<&str, Token> {
-    parse_char_to_token(s, '@', Token::from_kind(TokenKind::At))
+    parse_char_to_token(s, '@', Token::from(TokenKind::At))
 }
 
 fn parse_colon(s: &str) -> IResult<&str, Token> {
-    parse_char_to_token(s, ':', Token::from_kind(TokenKind::Colon))
+    parse_char_to_token(s, ':', Token::from(TokenKind::Colon))
 }
 
 fn parse_whitespace(s: &str) -> IResult<&str, Token> {
-    space1(s).map(|(rest, _)| (rest, Token::from_kind(TokenKind::Space)))
+    space1(s).map(|(rest, _)| (rest, Token::from(TokenKind::Space)))
 }
 
 fn parse_newline(s: &str) -> IResult<&str, Token> {
     newline
         .parse(s)
-        .map(|(rest, _)| (rest, Token::from_kind(TokenKind::Newline)))
+        .map(|(rest, _)| (rest, Token::from(TokenKind::Newline)))
 }
 
 #[derive(Debug)]

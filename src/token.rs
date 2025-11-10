@@ -45,11 +45,6 @@ impl Token {
         }
     }
 
-    pub fn from_kind(kind: TokenKind) -> Self {
-        Token::verify_token(kind, TokenValue::None);
-        Token::new(kind, TokenValue::None)
-    }
-
     fn verify_token(kind: TokenKind, value: TokenValue) {
         match kind {
             TokenKind::Identifier | TokenKind::Litteral => {
@@ -72,5 +67,12 @@ impl Default for Token {
             kind: TokenKind::EOF,
             value: TokenValue::None,
         }
+    }
+}
+
+impl From<TokenKind> for Token {
+    fn from(token: TokenKind) -> Self {
+        Token::verify_token(token, TokenValue::None);
+        Token::new(token, TokenValue::None)
     }
 }
