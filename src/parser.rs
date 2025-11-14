@@ -1,11 +1,9 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    lexer::NonLexer, non::{FieldValue, Non}, token::{Token, TokenKind}
+    lexer::NonLexer,
+    non::{FieldValue, Non},
+    token::{Token, TokenKind},
 };
 
 #[derive(Debug)]
@@ -40,12 +38,6 @@ impl<'a> NonParser<'a> {
                 println!("{}", id);
             }
             panic!();
-        }
-    }
-
-    pub fn _resolve_all(&mut self) {
-        for non in self.nons.values() {
-            non.borrow_mut()._resolve();
         }
     }
 
@@ -107,7 +99,7 @@ impl<'a> NonParser<'a> {
 
         let mut value_vec = Vec::new();
         self.advance();
-        while !self.eat(TokenKind::Newline) {
+        while !(self.eat(TokenKind::Newline) || self.eat(TokenKind::Eof)) {
             if self.eat(TokenKind::Space) {
                 let value = match self.current_token.kind {
                     TokenKind::Dot => {

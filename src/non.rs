@@ -1,32 +1,44 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
-use serde::{Serialize};
+use serde::Serialize;
 
-#[derive(Debug, Default, Clone, Serialize)]
+#[derive(Debug, Default, Clone, Serialize, PartialEq)]
 pub struct Non {
+    id: String,
     fields: HashMap<String, FieldValue>,
     pub parent: Option<Rc<RefCell<Non>>>,
 }
 
 impl Non {
+    pub fn new(
+        id: String,
+        fields: HashMap<String, FieldValue>,
+        parent: Option<Rc<RefCell<Non>>>,
+    ) -> Self {
+        Self { id, fields, parent }
+    }
+
     pub fn from_id(id: String) -> Self {
-        let mut fields = HashMap::new();
-        fields.insert("id".to_string(), FieldValue::Litteral(id));
+        let fields = HashMap::new();
         Non {
+            id,
             fields,
             ..Default::default()
         }
     }
 
     pub fn id(&self) -> String {
-        match self.fields.get("id").unwrap() {
-            FieldValue::Litteral(id) => id.clone(),
-            _ => panic!("Id must be a litteral."),
-        }
+        self.id.clone()
     }
 
     pub fn get(&self, field_name: &str) -> Option<String> {
-        self.fields().get(field_name).map(|field| self.resolve_field(field.clone()))
+        self.fields()
+            .get(field_name)
+            .map(|field| self.resolve_field(field.clone()))
     }
 
     pub fn add_field(&mut self, name: String, value: FieldValue) {
@@ -43,7 +55,11 @@ impl Non {
                 }
             }
             FieldValue::FieldReference(reference) => {
-                str.push_str(self.get(&reference).unwrap().as_str())
+                if reference == "id" {
+                    str.push_str(&self.id());
+                } else {
+                    str.push_str(self.get(&reference).unwrap().as_str())
+                }
             }
             FieldValue::ObjRef(non, field_name) => {
                 str.push_str(non.borrow().get(&field_name).unwrap().as_str())
@@ -52,15 +68,30 @@ impl Non {
         str
     }
 
-    pub fn _resolve(&mut self) {
-        let mut fields = HashMap::new();
+    pub fn union(&self, other: Ref<'_, Non>) -> Result<Non, String> {
+        let mut union_fields = HashMap::new();
+        let fields = self.fields();
+        let other_fields = other.fields();
 
-        for (field_name, field_value) in &self.fields {
-            let value = self.resolve_field(field_value.clone());
-            fields.insert(field_name.clone(), FieldValue::Litteral(value));
+        for (name, value) in &fields {
+            if let Some(other_value) = other_fields.get(name) {
+                if other_value != value {
+                    return Err(format!("Duplicated field '{}' without same value.", name));
+                }
+            }
+            union_fields.insert(name.clone(), value.clone());
         }
 
-        self.fields = fields;
+        for (name, value) in other_fields {
+            if let Some(other_value) = fields.get(&name) {
+                if *other_value != value {
+                    return Err(format!("Duplicated field '{}' without same value.", name));
+                }
+            }
+            union_fields.insert(name, value);
+        }
+
+        Ok(Non::new(self.id(), union_fields, None))
     }
 
     pub fn serialize_non(&self, flat: bool) -> String {
@@ -69,26 +100,19 @@ impl Non {
         str.push_str(&self.id().to_string());
         str.push(':');
 
-        if let Some(parent_ref) = &self.parent && !flat {
+        if let Some(parent_ref) = &self.parent
+            && !flat
+        {
             let parent = parent_ref.borrow();
             str.push(' ');
             str.push_str(&parent.id());
         }
-        
+
         str.push('\n');
 
+        let fields = if flat { &self.fields() } else { &self.fields };
 
-        let fields = if flat {
-            &self.fields()
-        } else {
-            &self.fields
-        };
-        
         for (key, value) in fields {
-            if key == "id" {
-                continue;
-            }
-
             let serialized_field_value = if flat {
                 self.resolve_field(value.clone())
             } else {
@@ -108,28 +132,29 @@ impl Non {
         str.push_str(&self.id());
         str.push_str("\"");
 
-        if let Some(parent) = &self.parent && !flat {
+        if let Some(parent) = &self.parent
+            && !flat
+        {
             str.push_str(",\n\t");
             str.push_str("\"parent\": \"");
             str.push_str(&parent.borrow().id());
             str.push('\"');
         }
 
-        let fields = if flat {
-            &self.fields()
-        } else {
-            &self.fields
-        };
+        let fields = if flat { &self.fields() } else { &self.fields };
 
-
-        if fields.len() > 1 { // id always here
+        if fields.len() > 1 {
             str.push_str(",\n\t\"fields\":\n\t{\n");
 
-            let fields_str = fields.iter()
-                .filter(|(name, _)| "id" != *name)
+            let fields_str = fields
+                .iter()
                 .map(|(field_name, value)| {
                     if flat {
-                        format!("\t\t\"{}\": \"{}\"", field_name, self.resolve_field(value.clone()))
+                        format!(
+                            "\t\t\"{}\": \"{}\"",
+                            field_name,
+                            self.resolve_field(value.clone())
+                        )
                     } else {
                         format!("\t\t\"{}\": \"{}\"", field_name, value.to_string())
                     }
@@ -160,14 +185,10 @@ impl Non {
             str.push('\n');
         }
 
-        let fields = if flat {
-            &self.fields()
-        } else {
-            &self.fields
-        };
+        let fields = if flat { &self.fields() } else { &self.fields };
 
-        let fields_str = fields.iter()
-            .filter(|(name, _)| "id" != *name)
+        let fields_str = fields
+            .iter()
             .map(|(field_name, value)| {
                 if flat {
                     format!("\t{}: {}", field_name, self.resolve_field(value.clone()))
@@ -193,7 +214,7 @@ impl Non {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum FieldValue {
     Litteral(String),
     Vec(Vec<FieldValue>),
@@ -205,15 +226,17 @@ impl FieldValue {
     pub fn to_string(&self) -> String {
         match self {
             FieldValue::Litteral(str) => str.clone(),
-            FieldValue::Vec(field_values) => field_values.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(" "),
+            FieldValue::Vec(field_values) => field_values
+                .iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
             FieldValue::FieldReference(reference) => {
-                if reference == "id" {
-                    "@"
-                } else {
-                    reference
-                }.to_string()
-            },
-            FieldValue::ObjRef(reference, field) => format!("{}.{}", reference.borrow().id(), field.clone()),
+                if reference == "id" { "@" } else { reference }.to_string()
+            }
+            FieldValue::ObjRef(reference, field) => {
+                format!("{}.{}", reference.borrow().id(), field.clone())
+            }
         }
     }
 }

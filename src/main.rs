@@ -2,17 +2,15 @@ use std::{fs::File, io::Read, path::Path};
 
 use clap::Parser;
 
-use crate::{
-    args::Args, lexer::NonLexer, nds::NonDefs, parser::NonParser
-};
+use crate::{args::Args, lexer::NonLexer, nds::NonDefs, parser::NonParser};
 
 mod args;
 mod error;
 mod lexer;
+mod nds;
 mod non;
 mod parser;
 mod token;
-mod nds;
 
 fn main() {
     let args = Args::parse();
@@ -23,7 +21,7 @@ fn main() {
         let mut buf = String::default();
 
         file.read_to_string(&mut buf).unwrap();
-
+        println!("ici");
         let lexer = NonLexer::new(&buf);
         let mut parser = NonParser::new(lexer);
 
@@ -33,12 +31,17 @@ fn main() {
             .nons(parser.nons)
             .flat(args.flat)
             .build();
-        
+
         let content = non_defs.serialize();
         println!("{}", content);
 
-        let _ = non_defs.at("alice").unwrap();
+        // let alice = non_defs.at("alice").unwrap();
+        // let bob = non_defs.at("bob").unwrap();
         // println!("alice.mail {}", non.get("mail").unwrap());
-    }
 
+        // let a = non_defs.at("a").unwrap();
+        // let b = non_defs.at("b").unwrap();
+        // let union = a.union(b);
+        // println!("union : {:?}", union);
+    }
 }
