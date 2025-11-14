@@ -1,4 +1,8 @@
-use std::{cell::{Ref, RefCell}, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use crate::{args::OutputFormat, non::Non};
 
@@ -25,27 +29,34 @@ impl NonDefs {
         let mut str = String::new();
         match self.format {
             OutputFormat::Json => {
-                str.push_str("{[\n");
-                let nons = self.nons.values().map(|n| n.borrow().serialize_json(self.flat))
-                .collect::<Vec<_>>()
-                .join(",\n");
+                str.push_str("[\n");
+                let nons = self
+                    .nons
+                    .values()
+                    .map(|n| n.borrow().serialize_json(self.flat))
+                    .collect::<Vec<_>>()
+                    .join(",\n");
                 str.push_str(&nons);
-                str.push_str("\n]}");
+                str.push_str("\n]");
             }
             OutputFormat::Yaml => {
-                let yaml = self.nons.values().map(|n| n.borrow().serialize_yaml(self.flat))
-                .collect::<Vec<_>>()
-                .join("\n");
+                let yaml = self
+                    .nons
+                    .values()
+                    .map(|n| n.borrow().serialize_yaml(self.flat))
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 str.push_str(&yaml);
-            },
+            }
             OutputFormat::Non => {
-                let nons = self.nons
+                let nons = self
+                    .nons
                     .values()
                     .map(|n| n.borrow().serialize_non(self.flat))
                     .collect::<Vec<_>>()
                     .join("\n");
                 str.push_str(&nons);
-            },
+            }
         }
         str
     }

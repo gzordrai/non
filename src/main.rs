@@ -21,7 +21,6 @@ fn main() {
         let mut buf = String::default();
 
         file.read_to_string(&mut buf).unwrap();
-        println!("ici");
         let lexer = NonLexer::new(&buf);
         let mut parser = NonParser::new(lexer);
 
@@ -32,16 +31,16 @@ fn main() {
             .flat(args.flat)
             .build();
 
-        let content = non_defs.serialize();
-        println!("{}", content);
+        // let content = non_defs.serialize();
+        // println!("{}", content);
 
         // let alice = non_defs.at("alice").unwrap();
         // let bob = non_defs.at("bob").unwrap();
-        // println!("alice.mail {}", non.get("mail").unwrap());
+        // println!("alice.mail {}", alice.get("mail").unwrap());
 
-        // let a = non_defs.at("a").unwrap();
-        // let b = non_defs.at("b").unwrap();
-        // let union = a.union(b);
-        // println!("union : {:?}", union);
+        let b = non_defs.at("b").unwrap();
+        let c = non_defs.at("c").unwrap();
+        let union = b.union(c);
+        println!("union : {:?}", union);
     }
 }

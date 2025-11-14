@@ -54,12 +54,12 @@ impl<'a> NonParser<'a> {
             panic!("Colon required after non declaration.");
         }
 
-        self.skip_spaces();
+        // self.skip_spaces();
 
-        if self.is_kind(TokenKind::Identifier) {
+        while self.eat(TokenKind::Space) && self.is_kind(TokenKind::Identifier) {
             let parent_name = self.current_token.get_token_str_raw_value().unwrap();
             let parent = self.find_nom_by_id_or_create(parent_name);
-            non.borrow_mut().parent = Some(parent);
+            non.borrow_mut().parents.push(parent);
             self.advance();
         }
 

@@ -1,6 +1,6 @@
 use std::{
     cell::{Ref, RefCell},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     rc::Rc,
 };
 
@@ -10,16 +10,20 @@ use serde::Serialize;
 pub struct Non {
     id: String,
     fields: HashMap<String, FieldValue>,
-    pub parent: Option<Rc<RefCell<Non>>>,
+    pub parents: Vec<Rc<RefCell<Non>>>,
 }
 
 impl Non {
     pub fn new(
         id: String,
         fields: HashMap<String, FieldValue>,
-        parent: Option<Rc<RefCell<Non>>>,
+        parents: Vec<Rc<RefCell<Non>>>,
     ) -> Self {
-        Self { id, fields, parent }
+        Self {
+            id,
+            fields,
+            parents,
+        }
     }
 
     pub fn from_id(id: String) -> Self {
@@ -69,7 +73,6 @@ impl Non {
     }
 
     pub fn union(&self, other: Ref<'_, Non>) -> Result<Non, String> {
-        let mut union_fields = HashMap::new();
         let fields = self.fields();
         let other_fields = other.fields();
 
@@ -79,19 +82,30 @@ impl Non {
                     return Err(format!("Duplicated field '{}' without same value.", name));
                 }
             }
-            union_fields.insert(name.clone(), value.clone());
         }
 
-        for (name, value) in other_fields {
-            if let Some(other_value) = fields.get(&name) {
-                if *other_value != value {
+        for (name, value) in &other_fields {
+            if let Some(other_value) = fields.get(name) {
+                if *other_value != *value {
                     return Err(format!("Duplicated field '{}' without same value.", name));
                 }
             }
-            union_fields.insert(name, value);
         }
 
-        Ok(Non::new(self.id(), union_fields, None))
+        let mut union_fields = self.fields();
+        union_fields.extend(other_fields);
+
+        let mut parents = self.parents.iter().cloned().collect::<Vec<_>>();
+        parents.extend(other.parents.iter().cloned());
+
+        // filter parents to avoid duplications
+        let mut seen = HashSet::new();
+        parents.retain(|p| {
+            let ptr = Rc::as_ptr(p);
+            seen.insert(ptr)
+        });
+
+        Ok(Non::new(self.id(), union_fields, parents))
     }
 
     pub fn serialize_non(&self, flat: bool) -> String {
@@ -100,12 +114,12 @@ impl Non {
         str.push_str(&self.id().to_string());
         str.push(':');
 
-        if let Some(parent_ref) = &self.parent
-            && !flat
-        {
-            let parent = parent_ref.borrow();
-            str.push(' ');
-            str.push_str(&parent.id());
+        if !flat {
+            for parent_ref in &self.parents {
+                let parent = parent_ref.borrow();
+                str.push(' ');
+                str.push_str(&parent.id());
+            }
         }
 
         str.push('\n');
@@ -132,19 +146,29 @@ impl Non {
         str.push_str(&self.id());
         str.push_str("\"");
 
-        if let Some(parent) = &self.parent
-            && !flat
-        {
-            str.push_str(",\n\t");
-            str.push_str("\"parent\": \"");
-            str.push_str(&parent.borrow().id());
-            str.push('\"');
-        }
-
         let fields = if flat { &self.fields() } else { &self.fields };
 
-        if fields.len() > 1 {
-            str.push_str(",\n\t\"fields\":\n\t{\n");
+        if !(fields.is_empty() && self.parents.is_empty()) {
+            str.push(',');
+        }
+
+        if !flat && !self.parents.is_empty() {
+            str.push_str("\n\t\"parents\": [\n");
+            let parent_str = self
+                .parents
+                .iter()
+                .map(|parent| format!("\t\t\"{}\"", parent.borrow().id()))
+                .collect::<Vec<String>>()
+                .join(",\n");
+            str.push_str(&parent_str);
+            str.push_str("\n\t]");
+            if !fields.is_empty() {
+                str.push(',');
+            }
+        }
+
+        if !fields.is_empty() {
+            str.push_str("\n\t\"fields\":\n\t{\n");
 
             let fields_str = fields
                 .iter()
@@ -175,10 +199,15 @@ impl Non {
         str.push_str(&self.id());
         str.push_str(":");
 
-        if let Some(parent) = &self.parent {
-            str.push_str("\n\t");
-            str.push_str("parent: ");
-            str.push_str(&parent.borrow().id());
+        if !self.parents.is_empty() {
+            str.push_str("\n\tparents:\n\t");
+            let parent_str = self
+                .parents
+                .iter()
+                .map(|parent| format!("  - {}", parent.borrow().id()))
+                .collect::<Vec<String>>()
+                .join("\n\t");
+            str.push_str(&parent_str);
         }
 
         if !self.fields.is_empty() {
@@ -206,9 +235,11 @@ impl Non {
 
     fn fields(&self) -> HashMap<String, FieldValue> {
         let mut map = HashMap::new();
-        if let Some(parent) = &self.parent {
-            map.extend(parent.borrow().fields().into_iter());
+
+        for parent_ref in &self.parents {
+            map.extend(parent_ref.borrow().fields().into_iter());
         }
+
         map.extend(self.fields.clone().into_iter());
         map
     }

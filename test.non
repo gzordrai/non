@@ -10,11 +10,14 @@ student:
 alice: student
 .login 'alice'
 
-bob: student
+bob: student univ
 .name 'robert'
 
 a:
 .a 'a'
 
-b:
+b: a
 .b 'b'
+
+c: a
+.c 'c'
