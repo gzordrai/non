@@ -8,7 +8,10 @@ use nom::{
     },
 };
 
-use crate::token::{Token, TokenKind};
+use crate::{
+    error::{NonError, Result},
+    token::{Token, TokenKind},
+};
 
 fn parse_char_to_token(s: &str, c: char, token: Token) -> IResult<&str, Token> {
     char(c).parse(s).map(|(rest, _)| (rest, token))
@@ -63,7 +66,7 @@ impl<'a> NonLexer<'a> {
         Self { remaining: source }
     }
 
-    pub fn read_next_token(&mut self) -> Result<Token, String> {
+    pub fn read_next_token(&mut self) -> Result<Token> {
         alt((
             parse_identifier,
             parse_string_litteral,
@@ -78,7 +81,7 @@ impl<'a> NonLexer<'a> {
             self.remaining = remaining;
             token
         })
-        .map_err(|err| format!("Tokenize error : {}", err))
+        .map_err(|_| NonError::TokenizeFailed)
     }
 
     pub fn _read_all(&mut self) -> Vec<Token> {

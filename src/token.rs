@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use thiserror::Error;
 
-use crate::error::{LexerError, Result};
+use crate::error::{NonError, Result};
 
 pub type TokenValue = Option<String>;
 
@@ -59,11 +59,11 @@ impl Token {
             if value.is_some() {
                 return Ok(());
             } else {
-                return Err(LexerError::MissingTokenValue);
+                return Err(NonError::MissingTokenValue);
             }
         }
 
-        Err(LexerError::InvalidTokenKind(kind))
+        Err(NonError::InvalidTokenKind(kind))
     }
 }
 
