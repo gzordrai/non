@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::token::TokenKind;
+use crate::token::Token;
 
 pub type Result<T> = std::result::Result<T, NonError>;
 
@@ -12,9 +12,21 @@ pub enum NonError {
     #[error("Identifier and litterals tokens need a value to be instanciated.")]
     MissingTokenValue,
 
-    #[error("Token kind {0} cannot have a value.")]
-    InvalidTokenKind(TokenKind),
-
     #[error("IO error")]
     IoError(#[from] std::io::Error),
+
+    #[error("Parsing error")]
+    ParsingError,
+
+    #[error("Unexpected token: {0}")]
+    UnexpectedToken(Token),
+
+    #[error("Unexpected EOF")]
+    UnexpectedEof,
+
+    #[error("Unexpected identifier: {0}")]
+    UnexpectedIdentifier(String),
+
+    #[error("Empty field value")]
+    EmptyFieldValue,
 }
