@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::token::Token;
+use crate::lexer::Token;
 
 pub type Result<T> = std::result::Result<T, NonError>;
 
