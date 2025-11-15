@@ -14,8 +14,6 @@ use thiserror::Error;
 
 use crate::error::{NonError, Result};
 
-pub type TokenValue = Option<String>;
-
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Token {
     Identifier(String),
@@ -56,7 +54,7 @@ impl<'a> NonLexer<'a> {
     pub fn read_next_token(&mut self) -> Result<Token> {
         alt((
             parse_identifier,
-            parse_string_litteral,
+            parse_litteral,
             parse_whitespace,
             parse_dot,
             parse_colon,
@@ -95,7 +93,7 @@ fn parse_identifier(s: &str) -> IResult<&str, Token> {
         .map(|(rest, id)| (rest, Token::Identifier(id.to_string())))
 }
 
-fn parse_string_litteral(s: &str) -> IResult<&str, Token> {
+fn parse_litteral(s: &str) -> IResult<&str, Token> {
     (char('\''), take_while1(|c| c != '\''), char('\''))
         .parse(s)
         .map(|(rest, (_, s, _))| (rest, Token::Litteral(s.to_string())))
@@ -119,4 +117,72 @@ fn parse_whitespace(s: &str) -> IResult<&str, Token> {
 
 fn parse_newline(s: &str) -> IResult<&str, Token> {
     newline.parse(s).map(|(rest, _)| (rest, Token::Newline))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_identifier() {
+        let s = "identifier";
+        let (remaining, token) = parse_identifier(s).unwrap();
+
+        assert_eq!(token, Token::Identifier("identifier".to_string()));
+        assert_eq!(remaining, "");
+    }
+
+    #[test]
+    fn test_parse_litteral() {
+        let s = "'value'";
+        let (remaining, token) = parse_litteral(s).unwrap();
+
+        assert_eq!(token, Token::Litteral("value".to_string()));
+        assert_eq!(remaining, "");
+    }
+
+    #[test]
+    fn test_parse_dot() {
+        let s = ".";
+        let (remaining, token) = parse_dot(s).unwrap();
+
+        assert_eq!(token, Token::Dot);
+        assert_eq!(remaining, "");
+    }
+
+    #[test]
+    fn test_parse_at() {
+        let s = "@";
+        let (remaining, token) = parse_at(s).unwrap();
+
+        assert_eq!(token, Token::At);
+        assert_eq!(remaining, "");
+    }
+
+    #[test]
+    fn test_parse_colon() {
+        let s = ":";
+        let (remaining, token) = parse_colon(s).unwrap();
+
+        assert_eq!(token, Token::Colon);
+        assert_eq!(remaining, "");
+    }
+
+    #[test]
+    fn test_parse_whitspace() {
+        let s = " ";
+        let (remaining, token) = parse_whitespace(s).unwrap();
+
+        assert_eq!(token, Token::Space);
+        assert_eq!(remaining, "");
+    }
+
+    #[test]
+    fn test_parse_newline() {
+        let s = "\n";
+        let (remaining, token) = parse_newline(s).unwrap();
+
+        assert_eq!(token, Token::Newline);
+        assert_eq!(remaining, "");
+    }
 }
