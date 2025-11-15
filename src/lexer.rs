@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use nom::{
     IResult, Parser,
     branch::alt,
@@ -8,52 +10,37 @@ use nom::{
     },
 };
 
-use crate::{
-    error::{NonError, Result},
-    token::{Token, TokenKind},
-};
+use thiserror::Error;
 
-fn parse_char_to_token(s: &str, c: char, token: Token) -> IResult<&str, Token> {
-    char(c).parse(s).map(|(rest, _)| (rest, token))
+use crate::error::{NonError, Result};
+
+pub type TokenValue = Option<String>;
+
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum Token {
+    Identifier(String),
+    Litteral(String),
+    Space,
+    Dot,
+    Colon,
+    At,
+    Newline,
+    Eof,
 }
 
-fn parse_identifier(s: &str) -> IResult<&str, Token> {
-    take_while1(|c: char| c.is_alphanumeric() || c == '_')
-        .parse(s)
-        .map(|(rest, id)| {
-            (
-                rest,
-                Token::new(TokenKind::Identifier, Some(id.to_string())),
-            )
-        })
-}
-
-fn parse_string_litteral(s: &str) -> IResult<&str, Token> {
-    (char('\''), take_while1(|c| c != '\''), char('\''))
-        .parse(s)
-        .map(|(rest, (_, s, _))| (rest, Token::new(TokenKind::Litteral, Some(s.to_string()))))
-}
-
-fn parse_dot(s: &str) -> IResult<&str, Token> {
-    parse_char_to_token(s, '.', Token::from(TokenKind::Dot))
-}
-
-fn parse_at(s: &str) -> IResult<&str, Token> {
-    parse_char_to_token(s, '@', Token::from(TokenKind::At))
-}
-
-fn parse_colon(s: &str) -> IResult<&str, Token> {
-    parse_char_to_token(s, ':', Token::from(TokenKind::Colon))
-}
-
-fn parse_whitespace(s: &str) -> IResult<&str, Token> {
-    space1(s).map(|(rest, _)| (rest, Token::from(TokenKind::Space)))
-}
-
-fn parse_newline(s: &str) -> IResult<&str, Token> {
-    newline
-        .parse(s)
-        .map(|(rest, _)| (rest, Token::from(TokenKind::Newline)))
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Identifier(s) => f.write_str(&format!("Identifier {s}")),
+            Self::Litteral(s) => f.write_str(&format!("Litteral {s}")),
+            Self::Space => f.write_str("Space"),
+            Self::Dot => f.write_str("Dot"),
+            Self::Colon => f.write_str("Colon"),
+            Self::At => f.write_str("At"),
+            Self::Newline => f.write_str("NewLine"),
+            Self::Eof => f.write_str("EOF"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -83,16 +70,53 @@ impl<'a> NonLexer<'a> {
         })
         .map_err(|_| NonError::TokenizeFailed)
     }
-
-    pub fn _read_all(&mut self) -> Vec<Token> {
-        self.into_iter().collect()
-    }
 }
 
 impl<'a> Iterator for NonLexer<'a> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.read_next_token().ok()
+        loop {
+            match self.read_next_token().ok()? {
+                Token::Space => continue,
+                token => return Some(token),
+            }
+        }
     }
+}
+
+fn parse_char_to_token(s: &str, c: char, token: Token) -> IResult<&str, Token> {
+    char(c).parse(s).map(|(rest, _)| (rest, token))
+}
+
+fn parse_identifier(s: &str) -> IResult<&str, Token> {
+    take_while1(|c: char| c.is_alphanumeric() || c == '_')
+        .parse(s)
+        .map(|(rest, id)| (rest, Token::Identifier(id.to_string())))
+}
+
+fn parse_string_litteral(s: &str) -> IResult<&str, Token> {
+    (char('\''), take_while1(|c| c != '\''), char('\''))
+        .parse(s)
+        .map(|(rest, (_, s, _))| (rest, Token::Litteral(s.to_string())))
+}
+
+fn parse_dot(s: &str) -> IResult<&str, Token> {
+    parse_char_to_token(s, '.', Token::Dot)
+}
+
+fn parse_at(s: &str) -> IResult<&str, Token> {
+    parse_char_to_token(s, '@', Token::At)
+}
+
+fn parse_colon(s: &str) -> IResult<&str, Token> {
+    parse_char_to_token(s, ':', Token::Colon)
+}
+
+fn parse_whitespace(s: &str) -> IResult<&str, Token> {
+    space1(s).map(|(rest, _)| (rest, Token::Space))
+}
+
+fn parse_newline(s: &str) -> IResult<&str, Token> {
+    newline.parse(s).map(|(rest, _)| (rest, Token::Newline))
 }
