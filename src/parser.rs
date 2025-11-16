@@ -36,14 +36,17 @@ impl<'a> NonParser<'a> {
         }
     }
 
+    #[inline]
     fn peek(&mut self) -> Option<&Token> {
         self.lexer.peek()
     }
 
+    #[inline]
     fn advance(&mut self) -> Option<Token> {
         self.lexer.next()
     }
 
+    #[inline]
     fn expect(&mut self, expected: Token) -> Result<()> {
         match self.advance() {
             Some(token) if token == expected => Ok(()),
@@ -58,14 +61,16 @@ impl<'a> NonParser<'a> {
         while self.peek().is_some() {
             let non = self.parse_non()?;
 
+            println!("{:?}", &non);
             nons.insert(non.name.clone(), non);
         }
 
-        self.detect_cycles(&nons)?;
+        Self::detect_cycles(&nons)?;
 
         Ok(nons)
     }
 
+    #[inline]
     fn parse_non(&mut self) -> Result<Non> {
         while matches!(self.peek(), Some(Token::Newline)) {
             self.advance();
@@ -188,7 +193,7 @@ impl<'a> NonParser<'a> {
         }
     }
 
-    fn detect_cycles(&self, nons: &HashMap<String, Non>) -> Result<()> {
+    fn detect_cycles(nons: &HashMap<String, Non>) -> Result<()> {
         let mut visited = HashSet::new();
         let mut stack = HashSet::new();
 
@@ -231,5 +236,49 @@ impl<'a> NonParser<'a> {
         stack.remove(name);
 
         Ok(false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn cyclic_definition() {
+        let a = "a".to_string();
+        let b = "b".to_string();
+        let c = "c".to_string();
+        let a_def = Non {
+            name: a.clone(),
+            parents: vec![],
+            fields: vec![Field {
+                name: a.clone(),
+                value: FieldValue::String(a.clone()),
+            }],
+        };
+        let b_def = Non {
+            name: b.clone(),
+            parents: vec![a.clone(), c.clone()],
+            fields: vec![Field {
+                name: b.clone(),
+                value: FieldValue::String(b.clone()),
+            }],
+        };
+        let c_def = Non {
+            name: c.clone(),
+            parents: vec![b.clone()],
+            fields: vec![Field {
+                name: c.clone(),
+                value: FieldValue::String(c.clone()),
+            }],
+        };
+        let mut nons: HashMap<String, Non> = HashMap::default();
+
+        nons.insert(a, a_def);
+        nons.insert(b, b_def);
+        nons.insert(c, c_def);
+
+        NonParser::detect_cycles(&nons).unwrap();
     }
 }
