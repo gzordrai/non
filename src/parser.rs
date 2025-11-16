@@ -1,4 +1,7 @@
-use std::{collections::HashMap, iter::Peekable};
+use std::{
+    collections::{HashMap, HashSet},
+    iter::Peekable,
+};
 
 use crate::{
     error::{NonError, Result},
@@ -55,9 +58,10 @@ impl<'a> NonParser<'a> {
         while self.peek().is_some() {
             let non = self.parse_non()?;
 
-            println!("{:?}", non);
             nons.insert(non.name.clone(), non);
         }
+
+        self.detect_cycles(&nons)?;
 
         Ok(nons)
     }
@@ -182,5 +186,50 @@ impl<'a> NonParser<'a> {
             Some(token) => Err(NonError::UnexpectedToken(token)),
             None => Err(NonError::UnexpectedEof),
         }
+    }
+
+    fn detect_cycles(&self, nons: &HashMap<String, Non>) -> Result<()> {
+        let mut visited = HashSet::new();
+        let mut stack = HashSet::new();
+
+        for name in nons.keys() {
+            if Self::has_cycle(name, nons, &mut visited, &mut stack)? {
+                return Err(NonError::CyclicDependency(name.clone()));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn has_cycle(
+        name: &str,
+        nons: &HashMap<String, Non>,
+        visited: &mut HashSet<String>,
+        stack: &mut HashSet<String>,
+    ) -> Result<bool> {
+        if stack.contains(name) {
+            return Ok(true);
+        }
+
+        if visited.contains(name) {
+            return Ok(false);
+        }
+
+        let non = nons
+            .get(name)
+            .ok_or_else(|| NonError::UndefinedNon(name.to_string()))?;
+
+        visited.insert(name.to_string());
+        stack.insert(name.to_string());
+
+        for parent in &non.parents {
+            if Self::has_cycle(parent, nons, visited, stack)? {
+                return Ok(true);
+            }
+        }
+
+        stack.remove(name);
+
+        Ok(false)
     }
 }

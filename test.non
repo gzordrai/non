@@ -16,8 +16,8 @@ bob: student univ
 a:
 .a 'a'
 
-b: a
+b: a c
 .b 'b'
 
-c: a
+c: b
 .c 'c'

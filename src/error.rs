@@ -9,14 +9,8 @@ pub enum NonError {
     #[error("Tokenize error")]
     TokenizeFailed,
 
-    #[error("Identifier and litterals tokens need a value to be instanciated.")]
-    MissingTokenValue,
-
     #[error("IO error")]
     IoError(#[from] std::io::Error),
-
-    #[error("Parsing error")]
-    ParsingError,
 
     #[error("Unexpected token: {0}")]
     UnexpectedToken(Token),
@@ -29,4 +23,10 @@ pub enum NonError {
 
     #[error("Empty field value")]
     EmptyFieldValue,
+
+    #[error("Cyclic dependency found: {0}")]
+    CyclicDependency(String),
+
+    #[error("Undefined non: {0}")]
+    UndefinedNon(String),
 }
