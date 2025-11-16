@@ -1,4 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cell::{Ref, RefCell},
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use serde::Serialize;
 
@@ -7,14 +11,6 @@ pub struct Non<'a> {
     id: String,
     fields: HashMap<String, FieldValue<'a>>,
     pub parents: Vec<&'a Non<'a>>,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub enum FieldValue<'a> {
-    Litteral(String),
-    Vec(Vec<FieldValue<'a>>),
-    FieldReference(String),
-    ObjRef(&'a Non<'a>, String),
 }
 
 impl<'a> Non<'a> {
@@ -43,14 +39,14 @@ impl<'a> Non<'a> {
         self.id.clone()
     }
 
-    pub fn add_field(&mut self, name: String, value: FieldValue<'a>) {
-        self.fields.insert(name, value);
-    }
-
     pub fn get(&self, field_name: &str) -> Option<String> {
         self.fields()
             .get(field_name)
             .map(|field| self.resolve_field(field.clone()))
+    }
+
+    pub fn add_field(&mut self, name: String, value: FieldValue<'a>) {
+        self.fields.insert(name, value);
     }
 
     pub fn resolve_field(&self, field_value: FieldValue<'a>) -> String {
@@ -109,17 +105,6 @@ impl<'a> Non<'a> {
         Ok(Non::new(self.id(), union_fields, parents))
     }
 
-    fn fields(&self) -> HashMap<String, FieldValue<'a>> {
-        let mut map = HashMap::new();
-
-        for parent in &self.parents {
-            map.extend(parent.fields().into_iter());
-        }
-
-        map.extend(self.fields.clone().into_iter());
-        map
-    }
-
     pub fn serialize_non(&self, flat: bool) -> String {
         let mut str = String::new();
 
@@ -135,11 +120,7 @@ impl<'a> Non<'a> {
 
         str.push('\n');
 
-        let fields = if flat {
-            self.fields()
-        } else {
-            self.fields.clone()
-        };
+        let fields = if flat { &self.fields() } else { &self.fields };
 
         for (key, value) in fields {
             let serialized_field_value = if flat {
@@ -161,11 +142,7 @@ impl<'a> Non<'a> {
         str.push_str(&self.id());
         str.push_str("\"");
 
-        let fields = if flat {
-            self.fields()
-        } else {
-            self.fields.clone()
-        };
+        let fields = if flat { &self.fields() } else { &self.fields };
 
         if !(fields.is_empty() && self.parents.is_empty()) {
             str.push(',');
@@ -218,7 +195,7 @@ impl<'a> Non<'a> {
         str.push_str(&self.id());
         str.push_str(":");
 
-        if !flat && !self.parents.is_empty() {
+        if !self.parents.is_empty() {
             str.push_str("\n\tparents:\n\t");
             let parent_str = self
                 .parents
@@ -233,11 +210,7 @@ impl<'a> Non<'a> {
             str.push('\n');
         }
 
-        let fields = if flat {
-            self.fields()
-        } else {
-            self.fields.clone()
-        };
+        let fields = if flat { &self.fields() } else { &self.fields };
 
         let fields_str = fields
             .iter()
@@ -255,6 +228,25 @@ impl<'a> Non<'a> {
         str.push_str("\n");
         str
     }
+
+    fn fields(&self) -> HashMap<String, FieldValue> {
+        let mut map = HashMap::new();
+
+        for parent in &self.parents {
+            map.extend(parent.fields().into_iter());
+        }
+
+        map.extend(self.fields.clone().into_iter());
+        map
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub enum FieldValue<'a> {
+    Litteral(String),
+    Vec(Vec<FieldValue<'a>>),
+    FieldReference(String),
+    ObjRef(&'a Non<'a>, String),
 }
 
 impl<'a> FieldValue<'a> {
@@ -267,11 +259,7 @@ impl<'a> FieldValue<'a> {
                 .collect::<Vec<_>>()
                 .join(" "),
             FieldValue::FieldReference(reference) => {
-                if reference == "id" {
-                    "@".to_string()
-                } else {
-                    format!(".{}", reference)
-                }
+                if reference == "id" { "@" } else { reference }.to_string()
             }
             FieldValue::ObjRef(reference, field) => {
                 format!("{}.{}", reference.id(), field.clone())

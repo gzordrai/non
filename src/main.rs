@@ -1,6 +1,7 @@
 use std::{fs::File, io::Read, path::Path};
 
 use clap::Parser;
+use typed_arena::Arena;
 
 use crate::{args::Args, lexer::NonLexer, nds::NonDefs, parser::NonParser};
 
@@ -22,7 +23,8 @@ fn main() {
 
         file.read_to_string(&mut buf).unwrap();
         let lexer = NonLexer::new(&buf);
-        let mut parser = NonParser::new(lexer);
+        let arena = Arena::new();
+        let mut parser = NonParser::new(lexer, &arena);
 
         parser.parse();
         let non_defs = NonDefs::builder()
@@ -31,12 +33,12 @@ fn main() {
             .flat(args.flat)
             .build();
 
-        // let content = non_defs.serialize();
-        // println!("{}", content);
+        let content = non_defs.serialize();
+        println!("{}", content);
 
-        // let alice = non_defs.at("alice").unwrap();
+        let alice = non_defs.at("alice").unwrap();
         // let bob = non_defs.at("bob").unwrap();
-        // println!("alice.mail {}", alice.get("mail").unwrap());
+        println!("alice.mail : {}", alice.get("mail").unwrap());
 
         let b = non_defs.at("b").unwrap();
         let c = non_defs.at("c").unwrap();
