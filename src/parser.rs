@@ -1,190 +1,186 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap, iter::Peekable};
 
 use crate::{
-    lexer::NonLexer,
-    non::{FieldValue, Non},
-    token::{Token, TokenKind},
+    error::{NonError, Result},
+    lexer::{NonLexer, Token},
+    non::Non,
 };
+
+#[derive(Debug, Clone)]
+pub struct Field {
+    pub name: String,
+    pub value: FieldValue,
+}
+
+#[derive(Debug, Clone)]
+pub enum FieldValue {
+    String(String),           // 'alice'
+    Reference,                // @
+    SelfFieldRef(String),     // .login (reference to own field)
+    FieldRef(String, String), // univ.domain (non.field)
+    Concat(Vec<FieldValue>),  // multiple values concatenated
+}
 
 #[derive(Debug)]
 pub struct NonParser<'a> {
-    current_token: Token,
-    lexer: NonLexer<'a>,
-    missing: HashMap<String, Rc<RefCell<Non>>>,
-    pub nons: HashMap<String, Rc<RefCell<Non>>>,
+    lexer: Peekable<NonLexer<'a>>,
 }
 
 impl<'a> NonParser<'a> {
     pub fn new(lexer: NonLexer<'a>) -> Self {
         Self {
-            current_token: Token::default(),
-            nons: HashMap::new(),
-            missing: HashMap::new(),
-            lexer,
+            lexer: lexer.peekable(),
         }
     }
 
-    pub fn parse(&mut self) {
-        self.advance();
-        self.skip_newlines();
+    fn peek(&mut self) -> Option<&Token> {
+        self.lexer.peek()
+    }
 
-        while self.is_kind(TokenKind::Identifier) {
-            self.parse_non();
-        }
+    fn advance(&mut self) -> Option<Token> {
+        self.lexer.next()
+    }
 
-        if !self.missing.is_empty() {
-            println!("Missing non in file:");
-            for id in self.missing.keys() {
-                println!("{}", id);
-            }
-            panic!();
+    fn expect(&mut self, expected: Token) -> Result<()> {
+        match self.advance() {
+            Some(token) if token == expected => Ok(()),
+            Some(token) => Err(NonError::UnexpectedToken(token)),
+            None => Err(NonError::UnexpectedEof),
         }
     }
 
-    fn parse_non(&mut self) {
-        let id = self.current_token.get_token_str_raw_value().unwrap();
-        let non = self
-            .missing
-            .remove(&id)
-            .unwrap_or(Rc::new(RefCell::new(Non::from_id(id.clone()))));
+    pub fn parse(&mut self) -> Result<HashMap<String, Non>> {
+        let mut nons: HashMap<String, Non> = HashMap::default();
 
-        self.advance();
+        while self.peek().is_some() {
+            let non = self.parse_non()?;
 
-        if !self.eat(TokenKind::Colon) {
-            panic!("Colon required after non declaration.");
+            println!("{:?}", non);
+            nons.insert(non.name.clone(), non);
         }
 
-        // self.skip_spaces();
+        Ok(nons)
+    }
 
-        while self.eat(TokenKind::Space) && self.is_kind(TokenKind::Identifier) {
-            let parent_name = self.current_token.get_token_str_raw_value().unwrap();
-            let parent = self.find_nom_by_id_or_create(parent_name);
-            non.borrow_mut().parents.push(parent);
+    fn parse_non(&mut self) -> Result<Non> {
+        while matches!(self.peek(), Some(Token::Newline)) {
             self.advance();
         }
 
-        if !self.eat(TokenKind::Newline) {
-            panic!("Newline required.");
-        }
-
-        while self.eat(TokenKind::Dot) {
-            let (field_name, field_value) = self.parse_field();
-            non.borrow_mut().add_field(field_name, field_value);
-        }
-
-        let id = non.borrow().id();
-        self.nons.insert(id, non);
-
-        self.skip_newlines();
-    }
-
-    fn find_nom_by_id_or_create(&mut self, id: String) -> Rc<RefCell<Non>> {
-        if self.nons.contains_key(&id) {
-            self.nons.get(&id).cloned().unwrap()
-        } else if self.missing.contains_key(&id) {
-            self.missing.get(&id).cloned().unwrap()
-        } else {
-            let non = Rc::new(RefCell::new(Non::from_id(id.clone())));
-            self.missing.insert(id, non.clone());
-            non
-        }
-    }
-
-    fn parse_field(&mut self) -> (String, FieldValue) {
-        let field_name = if self.is_kind(TokenKind::Identifier) {
-            self.current_token.get_token_str_raw_value().unwrap()
-        } else {
-            panic!("Field name must be an identifier.");
+        let id = match self.advance() {
+            Some(Token::Identifier(id)) => id,
+            Some(token) => return Err(NonError::UnexpectedToken(token)),
+            None => return Err(NonError::UnexpectedEof),
         };
 
-        let mut value_vec = Vec::new();
-        self.advance();
-        while !(self.eat(TokenKind::Newline) || self.eat(TokenKind::Eof)) {
-            if self.eat(TokenKind::Space) {
-                let value = match self.current_token.kind {
-                    TokenKind::Dot => {
-                        self.advance();
-                        if self.is_kind(TokenKind::Identifier) {
-                            FieldValue::FieldReference(
-                                self.current_token.get_token_str_raw_value().unwrap(),
-                            )
-                        } else {
-                            panic!("Token must be an identifier.");
-                        }
+        self.expect(Token::Colon)?;
+
+        let parents = self.parse_parents()?;
+
+        self.expect(Token::Newline)?;
+
+        let fields = self.parse_fields()?;
+
+        Ok(Non::new(id, parents, fields))
+    }
+
+    fn parse_parents(&mut self) -> Result<Vec<String>> {
+        let mut parents = Vec::new();
+
+        while let Some(token) = self.peek() {
+            match token {
+                Token::Identifier(_) => {
+                    if let Some(Token::Identifier(id)) = self.advance() {
+                        parents.push(id);
                     }
-
-                    TokenKind::Identifier => {
-                        let identifier = self.current_token.get_token_str_raw_value().unwrap();
-                        self.advance();
-                        if self.eat(TokenKind::Dot) && self.is_kind(TokenKind::Identifier) {
-                            let field = self.current_token.get_token_str_raw_value();
-                            FieldValue::ObjRef(
-                                self.find_nom_by_id_or_create(identifier),
-                                field.unwrap(),
-                            )
-                        } else {
-                            panic!("Identifier not found for non reference.");
-                        }
-                    }
-
-                    TokenKind::Litteral => {
-                        FieldValue::Litteral(self.current_token.get_token_str_raw_value().unwrap())
-                    }
-
-                    TokenKind::At => FieldValue::FieldReference("id".to_string()),
-
-                    token => panic!("Invalid token : {:?}", token),
-                };
-                value_vec.push(value);
-                self.advance();
+                }
+                Token::Newline => break,
+                token => return Err(NonError::UnexpectedToken(token.clone())),
             }
         }
 
-        let value = if value_vec.len() == 1 {
-            value_vec.pop().unwrap()
-        } else if value_vec.len() > 1 {
-            FieldValue::Vec(value_vec)
-        } else {
-            panic!("Field value cannot be empty.");
+        Ok(parents)
+    }
+
+    fn parse_fields(&mut self) -> Result<Vec<Field>> {
+        let mut fields = Vec::new();
+
+        while matches!(self.peek(), Some(Token::Dot)) {
+            fields.push(self.parse_field()?);
+
+            self.expect(Token::Newline)?;
+        }
+
+        Ok(fields)
+    }
+
+    fn parse_field(&mut self) -> Result<Field> {
+        self.expect(Token::Dot)?;
+
+        let name = match self.advance() {
+            Some(Token::Identifier(id)) => id,
+            Some(token) => return Err(NonError::UnexpectedToken(token)),
+            None => return Err(NonError::UnexpectedEof),
         };
 
-        (field_name, value)
+        let value = self.parse_field_value()?;
+
+        Ok(Field { name, value })
     }
 
-    fn skip_spaces(&mut self) {
-        loop {
-            if !self.eat(TokenKind::Space) {
-                break;
+    fn parse_field_value(&mut self) -> Result<FieldValue> {
+        let mut values = Vec::new();
+
+        while let Some(token) = self.peek() {
+            match token {
+                Token::Newline => break,
+                Token::Litteral(_) => {
+                    if let Some(Token::Litteral(s)) = self.advance() {
+                        values.push(FieldValue::String(s));
+                    }
+                }
+                Token::At => {
+                    self.advance();
+                    values.push(FieldValue::Reference);
+                }
+                Token::Dot => {
+                    self.advance();
+
+                    let field_ref = self.parse_field_reference()?;
+
+                    values.push(field_ref);
+                }
+                Token::Identifier(id) => {
+                    let id = id.clone();
+
+                    self.advance();
+
+                    if matches!(self.peek(), Some(Token::Dot)) {
+                        self.advance();
+
+                        if let Some(Token::Identifier(field)) = self.advance() {
+                            values.push(FieldValue::FieldRef(id, field));
+                        }
+                    } else {
+                        return Err(NonError::UnexpectedIdentifier(id));
+                    }
+                }
+                token => return Err(NonError::UnexpectedToken(token.clone())),
             }
         }
-    }
 
-    fn skip_newlines(&mut self) {
-        loop {
-            if !self.eat(TokenKind::Newline) {
-                break;
-            }
+        match values.len() {
+            0 => Err(NonError::EmptyFieldValue),
+            1 => Ok(values.into_iter().next().unwrap()),
+            _ => Ok(FieldValue::Concat(values)),
         }
     }
 
-    fn current_kind(&self) -> TokenKind {
-        self.current_token.kind
-    }
-
-    fn is_kind(&self, kind: TokenKind) -> bool {
-        self.current_kind() == kind
-    }
-
-    fn eat(&mut self, kind: TokenKind) -> bool {
-        if self.is_kind(kind) {
-            self.advance();
-            true
-        } else {
-            false
+    fn parse_field_reference(&mut self) -> Result<FieldValue> {
+        match self.advance() {
+            Some(Token::Identifier(field)) => Ok(FieldValue::SelfFieldRef(field)),
+            Some(token) => Err(NonError::UnexpectedToken(token)),
+            None => Err(NonError::UnexpectedEof),
         }
-    }
-
-    fn advance(&mut self) {
-        self.current_token = self.lexer.read_next_token().unwrap_or_default();
     }
 }
