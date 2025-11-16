@@ -31,12 +31,12 @@ fn main() {
             .flat(args.flat)
             .build();
 
-        // let content = non_defs.serialize();
-        // println!("{}", content);
+        let content = non_defs.serialize();
+        println!("{}", content);
 
-        // let alice = non_defs.at("alice").unwrap();
+        let alice = non_defs.at("alice").unwrap();
         // let bob = non_defs.at("bob").unwrap();
-        // println!("alice.mail {}", alice.get("mail").unwrap());
+        println!("alice.mail {}", alice.get("mail").unwrap());
 
         let b = non_defs.at("b").unwrap();
         let c = non_defs.at("c").unwrap();

@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use crate::{
     lexer::NonLexer,
@@ -39,6 +43,8 @@ impl<'a> NonParser<'a> {
             }
             panic!();
         }
+
+        Self::detect_cycles(&self.nons).unwrap();
     }
 
     fn parse_non(&mut self) {
@@ -151,7 +157,7 @@ impl<'a> NonParser<'a> {
         (field_name, value)
     }
 
-    fn skip_spaces(&mut self) {
+    fn _skip_spaces(&mut self) {
         loop {
             if !self.eat(TokenKind::Space) {
                 break;
@@ -186,5 +192,48 @@ impl<'a> NonParser<'a> {
 
     fn advance(&mut self) {
         self.current_token = self.lexer.read_next_token().unwrap_or_default();
+    }
+
+    fn detect_cycles(nons: &HashMap<String, Rc<RefCell<Non>>>) -> Result<(), String> {
+        let mut visited = HashSet::new();
+        let mut stack = HashSet::new();
+
+        for name in nons.keys() {
+            if Self::has_cycle(name, nons, &mut visited, &mut stack)? {
+                return Err("Cycle detected.".to_string());
+            }
+        }
+
+        Ok(())
+    }
+
+    fn has_cycle(
+        name: &str,
+        nons: &HashMap<String, Rc<RefCell<Non>>>,
+        visited: &mut HashSet<String>,
+        stack: &mut HashSet<String>,
+    ) -> Result<bool, String> {
+        if stack.contains(name) {
+            return Ok(true);
+        }
+
+        if visited.contains(name) {
+            return Ok(false);
+        }
+
+        let non = nons.get(name).ok_or_else(|| "Unknown non.".to_string())?;
+
+        visited.insert(name.to_string());
+        stack.insert(name.to_string());
+
+        for parent in &non.borrow().parents {
+            if Self::has_cycle(&parent.borrow().id(), nons, visited, stack)? {
+                return Ok(true);
+            }
+        }
+
+        stack.remove(name);
+
+        Ok(false)
     }
 }
