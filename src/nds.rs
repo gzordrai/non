@@ -17,8 +17,8 @@ impl NonDefs {
         NonDefs { nons }
     }
 
-    pub fn at(&self, id: &str) -> Option<&Non> {
-        self.nons.get(id)
+    pub fn at(&self, id: &str) -> Result<Non> {
+        self.resolve(id)
     }
 
     pub fn resolve(&self, id: &str) -> Result<Non> {
@@ -98,7 +98,7 @@ impl FromStr for NonDefs {
         let lexer = NonLexer::new(s);
         let mut parser = NonParser::new(lexer);
 
-        Ok(parser.parse()?)
+        parser.parse()
     }
 }
 

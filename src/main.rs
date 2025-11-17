@@ -23,14 +23,14 @@ fn main() -> Result<()> {
     file.read_to_string(&mut buf)?;
 
     let nds = NonDefs::from_str(&buf)?;
-    let a = nds.at("a").unwrap();
+    let a = nds.at("alice").unwrap();
 
     println!("{}", a.id());
     println!("{:?}", a.get("name"));
     println!("{:?}", a.get("login"));
     println!("{:?}", a.get("mail"));
 
-    let b = nds.at("b").unwrap();
+    let b = nds.at("bob").unwrap();
 
     println!("{:?}", b.get("login"));
     println!("{:?}", b.get("name"));

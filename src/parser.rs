@@ -62,7 +62,6 @@ impl<'a> NonParser<'a> {
         while self.peek().is_some() {
             let non = self.parse_non()?;
 
-            println!("{:?}", &non);
             nons.insert(non.name.clone(), non);
         }
 

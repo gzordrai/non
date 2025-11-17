@@ -1,4 +1,7 @@
-use crate::{error::Result, parser::Field};
+use crate::{
+    error::Result,
+    parser::{Field, FieldValue},
+};
 
 #[derive(Debug, Default, Clone)]
 pub struct Non {
@@ -20,12 +23,10 @@ impl Non {
         &self.name
     }
 
-    pub fn get(&self, k: &str) -> Option<&Field> {
-        self.fields.iter().find(|n| n.name == k)
-    }
+    pub fn get(&self, k: &str) -> Option<String> {
+        let field = self.fields.iter().find(|n| n.name == k)?;
 
-    pub fn add_field(&mut self, field: Field) {
-        self.fields.push(field);
+        self.resolve_field_value(&field.value)
     }
 
     pub fn merge_fields(&mut self, other: &Non) -> Result<()> {
@@ -40,74 +41,26 @@ impl Non {
         Ok(())
     }
 
-    // pub fn get(&self, field_name: &str) -> Option<String> {
-    //     self.fields()
-    //         .get(field_name)
-    //         .map(|field| self.resolve_field(field.clone()))
-    // }
+    fn resolve_field_value(&self, value: &FieldValue) -> Option<String> {
+        println!("{:?}", &self.fields);
+        println!("{:?}", value);
 
-    // pub fn add_field(&mut self, name: String, value: FieldValue) {
-    //     self.fields.insert(name, value);
-    // }
+        match value {
+            FieldValue::String(s) => Some(s.clone()),
+            FieldValue::Reference => Some(self.name.clone()),
+            FieldValue::SelfFieldRef(field_name) => self.get(field_name),
+            FieldValue::FieldRef(non_name, field_name) => self.get(field_name),
+            FieldValue::Concat(values) => {
+                let mut result = String::new();
 
-    // pub fn resolve_field(&self, field_value: FieldValue) -> String {
-    //     let mut str = String::new();
-    //     match field_value {
-    //         FieldValue::Litteral(v) => str.push_str(&v),
-    //         FieldValue::Vec(field_values) => {
-    //             for field_value in field_values {
-    //                 str.push_str(self.resolve_field(field_value).as_str());
-    //             }
-    //         }
-    //         FieldValue::FieldReference(reference) => {
-    //             if reference == "id" {
-    //                 str.push_str(&self.id());
-    //             } else {
-    //                 str.push_str(self.get(&reference).unwrap().as_str())
-    //             }
-    //         }
-    //         FieldValue::ObjRef(non, field_name) => {
-    //             str.push_str(non.borrow().get(&field_name).unwrap().as_str())
-    //         }
-    //     }
-    //     str
-    // }
+                for v in values {
+                    result.push_str(&self.resolve_field_value(v)?);
+                }
 
-    // pub fn union(&self, other: Ref<'_, Non>) -> Result<Non, String> {
-    //     let fields = self.fields();
-    //     let other_fields = other.fields();
-
-    //     for (name, value) in &fields {
-    //         if let Some(other_value) = other_fields.get(name) {
-    //             if other_value != value {
-    //                 return Err(format!("Duplicated field '{}' without same value.", name));
-    //             }
-    //         }
-    //     }
-
-    //     for (name, value) in &other_fields {
-    //         if let Some(other_value) = fields.get(name) {
-    //             if *other_value != *value {
-    //                 return Err(format!("Duplicated field '{}' without same value.", name));
-    //             }
-    //         }
-    //     }
-
-    //     let mut union_fields = self.fields();
-    //     union_fields.extend(other_fields);
-
-    //     let mut parents = self.parents.iter().cloned().collect::<Vec<_>>();
-    //     parents.extend(other.parents.iter().cloned());
-
-    //     // filter parents to avoid duplications
-    //     let mut seen = HashSet::new();
-    //     parents.retain(|p| {
-    //         let ptr = Rc::as_ptr(p);
-    //         seen.insert(ptr)
-    //     });
-
-    //     Ok(Non::new(self.id(), union_fields, parents))
-    // }
+                Some(result)
+            }
+        }
+    }
 
     // pub fn serialize_non(&self, flat: bool) -> String {
     //     let mut str = String::new();
