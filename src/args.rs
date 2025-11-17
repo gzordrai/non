@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use clap::{Parser, ValueEnum};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -8,13 +10,13 @@ pub enum OutputFormat {
     Non,
 }
 
-impl ToString for OutputFormat {
-    fn to_string(&self) -> String {
+impl Display for OutputFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OutputFormat::Json => "json",
-            OutputFormat::Yaml => "yaml",
-            OutputFormat::Non => "non",
-        }.to_string()
+            OutputFormat::Json => f.write_str("json"),
+            OutputFormat::Yaml => f.write_str("yaml"),
+            OutputFormat::Non => f.write_str("non"),
+        }
     }
 }
 
@@ -30,6 +32,6 @@ pub struct Args {
     #[arg(short, long)]
     pub output: Option<String>,
 
-    #[arg(long, default_value_t=false)]
+    #[arg(long, default_value_t = false)]
     pub flat: bool,
 }
