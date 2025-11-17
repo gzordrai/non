@@ -126,9 +126,12 @@ impl Non {
 
         for (key, value) in fields {
             let serialized_field_value = if flat {
-                self.resolve_field(value.clone())
+                format!("'{}'", self.resolve_field(value.clone()))
             } else {
-                value.to_string()
+                match value {
+                    FieldValue::Litteral(lit) => format!("'{}'", lit),
+                    _ => value.to_string()
+                }
             };
             str.push_str(&format!(".{} {}\n", key, serialized_field_value));
         }
