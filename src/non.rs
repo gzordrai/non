@@ -1,5 +1,7 @@
 use std::{
-    cell::{Ref, RefCell}, collections::{HashMap, HashSet}, fmt::format, rc::Rc
+    cell::{Ref, RefCell},
+    collections::{HashMap, HashSet},
+    rc::Rc,
 };
 
 use serde::Serialize;
@@ -103,7 +105,11 @@ impl Non {
             seen.insert(ptr)
         });
 
-        Ok(Non::new(format!("{}_{}", self.id(), other.id()), union_fields, parents))
+        Ok(Non::new(
+            format!("{}_{}", self.id(), other.id()),
+            union_fields,
+            parents,
+        ))
     }
 
     pub fn serialize_non(&self, flat: bool) -> String {
@@ -130,7 +136,7 @@ impl Non {
             } else {
                 match value {
                     FieldValue::Litteral(lit) => format!("'{}'", lit),
-                    _ => value.to_string()
+                    _ => value.to_string(),
                 }
             };
             str.push_str(&format!(".{} {}\n", key, serialized_field_value));
