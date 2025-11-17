@@ -25,6 +25,10 @@ impl NonDefs {
         self.nons.get(id).map(|n| n.borrow())
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Rc<RefCell<Non>>)> {
+        self.nons.iter()
+    }
+
     pub fn serialize(&self) -> String {
         let mut str = String::new();
         match self.format {
