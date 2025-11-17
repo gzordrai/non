@@ -6,6 +6,7 @@ use std::{
 use crate::{
     error::{NonError, Result},
     lexer::{NonLexer, Token},
+    nds::NonDefs,
     non::Non,
 };
 
@@ -55,7 +56,7 @@ impl<'a> NonParser<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> Result<HashMap<String, Non>> {
+    pub fn parse(&mut self) -> Result<NonDefs> {
         let mut nons: HashMap<String, Non> = HashMap::default();
 
         while self.peek().is_some() {
@@ -67,7 +68,7 @@ impl<'a> NonParser<'a> {
 
         Self::detect_cycles(&nons)?;
 
-        Ok(nons)
+        Ok(NonDefs::new(nons))
     }
 
     #[inline]

@@ -1,4 +1,4 @@
-use crate::parser::Field;
+use crate::{error::Result, parser::Field};
 
 #[derive(Debug, Default, Clone)]
 pub struct Non {
@@ -16,22 +16,29 @@ impl Non {
         }
     }
 
+    pub fn id(&self) -> &String {
+        &self.name
+    }
+
+    pub fn get(&self, k: &str) -> Option<&Field> {
+        self.fields.iter().find(|n| n.name == k)
+    }
+
     pub fn add_field(&mut self, field: Field) {
         self.fields.push(field);
     }
 
-    // pub fn from_id(id: String) -> Self {
-    //     let fields = HashMap::new();
-    //     Non {
-    //         id,
-    //         fields,
-    //         ..Default::default()
-    //     }
-    // }
+    pub fn merge_fields(&mut self, other: &Non) -> Result<()> {
+        for other_field in &other.fields {
+            if let Some(existing) = self.fields.iter_mut().find(|f| f.name == other_field.name) {
+                existing.value = other_field.value.clone();
+            } else {
+                self.fields.push(other_field.clone());
+            }
+        }
 
-    // pub fn id(&self) -> String {
-    //     self.id.clone()
-    // }
+        Ok(())
+    }
 
     // pub fn get(&self, field_name: &str) -> Option<String> {
     //     self.fields()
